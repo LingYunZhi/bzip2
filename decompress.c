@@ -23,20 +23,6 @@
 
 
 /*---------------------------------------------------*/
-static
-void makeMaps_d ( DState* s )
-{
-   Int32 i;
-   s->nInUse = 0;
-   for (i = 0; i < 256; i++)
-      if (s->inUse[i]) {
-         s->seqToUnseq[s->nInUse] = i;
-         s->nInUse++;
-      }
-}
-
-
-/*---------------------------------------------------*/
 #define RETURN(rrr)                               \
    { retVal = rrr; goto save_state_and_return; };
 
@@ -272,14 +258,17 @@ Int32 BZ2_decompress ( DState* s )
       }
 
       for (i = 0; i < 256; i++) s->inUse[i] = False;
-
+      s->nInUse = 0;
       for (i = 0; i < 16; i++)
          if (s->inUse16[i])
             for (j = 0; j < 16; j++) {
                GET_BIT(BZ_X_MAPPING_2, uc);
-               if (uc == 1) s->inUse[i * 16 + j] = True;
+               if (uc == 1) {
+                  s->inUse[i * 16 + j] = True;
+                  s->seqToUnseq[s->nInUse] = i * 16 + j;
+                  s->nInUse++;
+               }
             }
-      makeMaps_d ( s );
       if (s->nInUse == 0) RETURN(BZ_DATA_ERROR);
       alphaSize = s->nInUse+2;
 
