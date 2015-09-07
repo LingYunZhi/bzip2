@@ -26,6 +26,7 @@
                 so as to do a bit better on small files
 */
 
+#include <stdlib.h>
 #include "bzlib_private.h"
 
 
@@ -154,7 +155,7 @@ void generateMTFValues ( EState* s )
    makeMaps_e ( s );
    EOB = s->nInUse+1;
 
-   for (i = 0; i <= EOB; i++) s->mtfFreq[i] = 0;
+   memset(s->mtfFreq, 0, sizeof(s->mtfFreq[0]) * (1 + EOB));
 
    wr = 0;
    zPend = 0;
@@ -265,8 +266,7 @@ void sendMTFValues ( EState* s )
 
    alphaSize = s->nInUse+2;
    for (t = 0; t < BZ_N_GROUPS; t++)
-      for (v = 0; v < alphaSize; v++)
-         s->len[t][v] = BZ_GREATER_ICOST;
+      memset(s->len[t], BZ_GREATER_ICOST, alphaSize);
 
    /*--- Decide how many coding tables to use ---*/
    AssertH ( s->nMTF > 0, 3001 );
@@ -304,12 +304,10 @@ void sendMTFValues ( EState* s )
                       "has %d syms (%4.1f%%)\n",
                       nPart, gs, ge, aFreq, 
                       (100.0 * (float)aFreq) / (float)(s->nMTF) );
- 
-         for (v = 0; v < alphaSize; v++)
-            if (v >= gs && v <= ge) 
-               s->len[nPart-1][v] = BZ_LESSER_ICOST; else
-               s->len[nPart-1][v] = BZ_GREATER_ICOST;
- 
+
+         memset(s->len[nPart-1], BZ_GREATER_ICOST, alphaSize);
+         memset(&s->len[nPart-1][gs], BZ_LESSER_ICOST, ge + 1 - gs);
+
          nPart--;
          gs = ge+1;
          remF -= aFreq;
@@ -324,8 +322,7 @@ void sendMTFValues ( EState* s )
       for (t = 0; t < nGroups; t++) fave[t] = 0;
 
       for (t = 0; t < nGroups; t++)
-         for (v = 0; v < alphaSize; v++)
-            s->rfreq[t][v] = 0;
+         memset(s->rfreq[t], 0, sizeof(s->rfreq[t][0]) * alphaSize);
 
       /*---
         Set up an auxiliary length table which is used to fast-track
