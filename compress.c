@@ -319,10 +319,10 @@ void sendMTFValues ( EState* s )
    ---*/
    for (iter = 0; iter < BZ_N_ITERS; iter++) {
 
-      for (t = 0; t < nGroups; t++) fave[t] = 0;
-
-      for (t = 0; t < nGroups; t++)
+      for (t = 0; t < nGroups; t++) {
+         fave[t] = 0;
          memset(s->rfreq[t], 0, sizeof(s->rfreq[t][0]) * alphaSize);
+      }
 
       /*---
         Set up an auxiliary length table which is used to fast-track
@@ -489,14 +489,17 @@ void sendMTFValues ( EState* s )
    }
 
    /*--- Transmit the mapping table. ---*/
-   { 
+   {
       Bool inUse16[16];
       for (i = 0; i < 16; i++) {
           inUse16[i] = False;
           for (j = 0; j < 16; j++)
-             if (s->inUse[i * 16 + j]) inUse16[i] = True;
+             if (s->inUse[i * 16 + j]) {
+                 inUse16[i] = True;
+                 break;
+             }
       }
-     
+
       nBytes = s->numZ;
       for (i = 0; i < 16; i++)
          if (inUse16[i]) bsW(s,1,1); else bsW(s,1,0);
