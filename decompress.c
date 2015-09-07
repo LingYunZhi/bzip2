@@ -19,6 +19,7 @@
    ------------------------------------------------------------------ */
 
 
+#include <stdlib.h>
 #include "bzlib_private.h"
 
 
@@ -257,7 +258,7 @@ Int32 BZ2_decompress ( DState* s )
             s->inUse16[i] = False;
       }
 
-      for (i = 0; i < 256; i++) s->inUse[i] = False;
+      memset(s->inUse, False, 256);
       s->nInUse = 0;
       for (i = 0; i < 16; i++)
          if (s->inUse16[i])
@@ -342,7 +343,7 @@ Int32 BZ2_decompress ( DState* s )
       groupNo  = -1;
       groupPos = 0;
 
-      for (i = 0; i <= 255; i++) s->unzftab[i] = 0;
+      memset(s->unzftab, 0, sizeof(s->unzftab));
 
       /*-- MTF init --*/
       {
@@ -418,17 +419,7 @@ Int32 BZ2_decompress ( DState* s )
                   /* avoid general-case expense */
                   pp = s->mtfbase[0];
                   uc = s->mtfa[pp+nn];
-                  while (nn > 3) {
-                     Int32 z = pp+nn;
-                     s->mtfa[(z)  ] = s->mtfa[(z)-1];
-                     s->mtfa[(z)-1] = s->mtfa[(z)-2];
-                     s->mtfa[(z)-2] = s->mtfa[(z)-3];
-                     s->mtfa[(z)-3] = s->mtfa[(z)-4];
-                     nn -= 4;
-                  }
-                  while (nn > 0) { 
-                     s->mtfa[(pp+nn)] = s->mtfa[(pp+nn)-1]; nn--; 
-                  };
+                  memmove(&s->mtfa[pp+1], &s->mtfa[pp], nn);
                   s->mtfa[pp] = uc;
                } else { 
                   /* general case */
@@ -507,7 +498,7 @@ Int32 BZ2_decompress ( DState* s )
       if (s->smallDecompress) {
 
          /*-- Make a copy of cftab, used in generation of T --*/
-         for (i = 0; i <= 256; i++) s->cftabCopy[i] = s->cftab[i];
+         memcpy(s->cftabCopy, s->cftab, sizeof(s->cftab));
 
          /*-- compute the T vector --*/
          for (i = 0; i < nblock; i++) {
