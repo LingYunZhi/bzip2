@@ -481,24 +481,20 @@ Int32 BZ2_decompress ( DState* s )
          RETURN(BZ_DATA_ERROR);
 
       /*-- Set up cftab to facilitate generation of T^(-1) --*/
-      /* Check: unzftab entries in range. */
-      for (i = 0; i <= 255; i++) {
-         if (s->unzftab[i] < 0 || s->unzftab[i] > nblock)
-            RETURN(BZ_DATA_ERROR);
-      }
       /* Actually generate cftab. */
       s->cftab[0] = 0;
-      for (i = 1; i <= 256; i++) s->cftab[i] = s->unzftab[i-1];
-      for (i = 1; i <= 256; i++) s->cftab[i] += s->cftab[i-1];
-      /* Check: cftab entries in range. */
-      for (i = 0; i <= 256; i++) {
+      for (i = 1; i <= 256; i++) {
+         /* Check: unzftab entries in range. */
+         if (s->unzftab[i - 1] < 0 || s->unzftab[i - 1] > nblock) {
+            RETURN(BZ_DATA_ERROR);
+         }
+         s->cftab[i] = s->unzftab[i-1] + s->cftab[i-1];
+         /* Check: cftab entries in range. */
          if (s->cftab[i] < 0 || s->cftab[i] > nblock) {
             /* s->cftab[i] can legitimately be == nblock */
             RETURN(BZ_DATA_ERROR);
          }
-      }
-      /* Check: cftab entries non-descending. */
-      for (i = 1; i <= 256; i++) {
+         /* Check: cftab entries non-descending. */
          if (s->cftab[i-1] > s->cftab[i]) {
             RETURN(BZ_DATA_ERROR);
          }
