@@ -122,7 +122,7 @@ void generateMTFValues ( EState* s )
 {
    UChar   yy[256];
    Int32   i, j;
-   Int32   zPend;
+   UInt32  zPend;
    Int32   wr;
    Int32   EOB;
 
@@ -173,8 +173,8 @@ void generateMTFValues ( EState* s )
       } else {
 
          if (zPend > 0) {
-            zPend--;
-            while (True) {
+            do {
+               zPend--;
                if (zPend & 1) {
                   mtfv[wr] = BZ_RUNB; wr++; 
                   s->mtfFreq[BZ_RUNB]++; 
@@ -182,10 +182,7 @@ void generateMTFValues ( EState* s )
                   mtfv[wr] = BZ_RUNA; wr++; 
                   s->mtfFreq[BZ_RUNA]++; 
                }
-               if (zPend < 2) break;
-               zPend = (zPend - 2) / 2;
-            };
-            zPend = 0;
+            } while (zPend >>= 1);
          }
          {
             register UChar  rtmp;
@@ -211,8 +208,8 @@ void generateMTFValues ( EState* s )
    }
 
    if (zPend > 0) {
-      zPend--;
-      while (True) {
+      do {
+         zPend--;
          if (zPend & 1) {
             mtfv[wr] = BZ_RUNB; wr++; 
             s->mtfFreq[BZ_RUNB]++; 
@@ -220,10 +217,7 @@ void generateMTFValues ( EState* s )
             mtfv[wr] = BZ_RUNA; wr++; 
             s->mtfFreq[BZ_RUNA]++; 
          }
-         if (zPend < 2) break;
-         zPend = (zPend - 2) / 2;
-      };
-      zPend = 0;
+      } while (zPend >>= 1);
    }
 
    mtfv[wr] = EOB; wr++; s->mtfFreq[EOB]++;
