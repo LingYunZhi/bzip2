@@ -234,7 +234,7 @@ typedef
 
       /* map of bytes used in block */
       Int32    nInUse;
-      Bool     inUse[256];
+      UInt16   inUse[16];
       UChar    unseqToSeq[256];
 
       /* the buffer for bit stream creation */
@@ -392,8 +392,6 @@ typedef
 
       /* map of bytes used in block */
       Int32    nInUse;
-      Bool     inUse[256];
-      Bool     inUse16[16];
       UChar    seqToUnseq[256];
 
       /* for decoding the MTF values */

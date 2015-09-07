@@ -74,8 +74,8 @@ __inline__
 void bsW ( EState* s, Int32 n, UInt32 v )
 {
    bsNEEDW ( n );
-   s->bsBuff |= (v << (32 - s->bsLive - n));
    s->bsLive += n;
+   s->bsBuff |= (v << (32 - s->bsLive));
 }
 
 
@@ -83,10 +83,8 @@ void bsW ( EState* s, Int32 n, UInt32 v )
 static
 void bsPutUInt32 ( EState* s, UInt32 u )
 {
-   bsW ( s, 8, (u >> 24) & 0xffL );
-   bsW ( s, 8, (u >> 16) & 0xffL );
-   bsW ( s, 8, (u >>  8) & 0xffL );
-   bsW ( s, 8,  u        & 0xffL );
+   bsW ( s, 16, (u >> 16) & 0xffffL );
+   bsW ( s, 16,  u        & 0xffffL );
 }
 
 
@@ -106,13 +104,18 @@ void bsPutUChar ( EState* s, UChar c )
 static
 void makeMaps_e ( EState* s )
 {
-   Int32 i;
+   Int32 i, j;
    s->nInUse = 0;
-   for (i = 0; i < 256; i++)
-      if (s->inUse[i]) {
-         s->unseqToSeq[i] = s->nInUse;
-         s->nInUse++;
+   for (i = 0; i < 16; i++) {
+      UInt16 use = s->inUse[i];
+      for (j = 0; use; j++) {
+         if (use & 0x8000U) {
+            s->unseqToSeq[i * 16 + j] = s->nInUse;
+            s->nInUse++;
+         }
+         use <<= 1;
       }
+   }
 }
 
 
@@ -484,25 +487,16 @@ void sendMTFValues ( EState* s )
 
    /*--- Transmit the mapping table. ---*/
    {
-      Bool inUse16[16];
-      for (i = 0; i < 16; i++) {
-          inUse16[i] = False;
-          for (j = 0; j < 16; j++)
-             if (s->inUse[i * 16 + j]) {
-                 inUse16[i] = True;
-                 break;
-             }
-      }
-
+      UInt16 inUse16 = 0;
       nBytes = s->numZ;
       for (i = 0; i < 16; i++)
-         if (inUse16[i]) bsW(s,1,1); else bsW(s,1,0);
+         if (s->inUse[i])
+             inUse16 |= 1U << (15 - i);
+      bsW(s,16,inUse16);
 
       for (i = 0; i < 16; i++)
-         if (inUse16[i])
-            for (j = 0; j < 16; j++) {
-               if (s->inUse[i * 16 + j]) bsW(s,1,1); else bsW(s,1,0);
-            }
+         if (s->inUse[i])
+            bsW(s,16,s->inUse[i]);
 
       if (s->verbosity >= 3) 
          VPrintf1( "      bytes: mapping %d, ", s->numZ-nBytes );

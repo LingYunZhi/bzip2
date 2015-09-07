@@ -122,6 +122,7 @@ Int32 BZ2_decompress ( DState* s )
    Int32* gLimit;
    Int32* gBase;
    Int32* gPerm;
+   UInt16 inUse16;
 
    if (s->state == BZ_X_MAGIC_1) {
       /*initialise the save area*/
@@ -251,25 +252,21 @@ Int32 BZ2_decompress ( DState* s )
          RETURN(BZ_DATA_ERROR);
 
       /*--- Receive the mapping table ---*/
-      for (i = 0; i < 16; i++) {
-         GET_BIT(BZ_X_MAPPING_1, uc);
-         if (uc == 1) 
-            s->inUse16[i] = True; else 
-            s->inUse16[i] = False;
-      }
+      GET_BITS(BZ_X_MAPPING_1, inUse16, 16);
 
-      memset(s->inUse, False, 256);
       s->nInUse = 0;
       for (i = 0; i < 16; i++)
-         if (s->inUse16[i])
-            for (j = 0; j < 16; j++) {
-               GET_BIT(BZ_X_MAPPING_2, uc);
-               if (uc == 1) {
-                  s->inUse[i * 16 + j] = True;
+         if (inUse16 & (1U << (15 - i))) {
+            UInt16 inUse;
+            GET_BITS(BZ_X_MAPPING_2, inUse, 16);
+            for (j = 0; inUse; j++) {
+            	if (inUse & 0x8000U) {
                   s->seqToUnseq[s->nInUse] = i * 16 + j;
                   s->nInUse++;
                }
+               inUse <<= 1;
             }
+        }
       if (s->nInUse == 0) RETURN(BZ_DATA_ERROR);
       alphaSize = s->nInUse+2;
 

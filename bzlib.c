@@ -35,6 +35,7 @@
 /*--- Compression stuff                           ---*/
 /*---------------------------------------------------*/
 
+#define BZ2_SET_INUSE(s, n) ((s)->inUse[(n) / 16] |= (1U << (15 - (n) % 16)))
 
 /*---------------------------------------------------*/
 #ifndef BZ_NO_STDIO
@@ -116,12 +117,11 @@ void default_bzfree ( void* opaque, void* addr )
 static
 void prepare_new_block ( EState* s )
 {
-   Int32 i;
    s->nblock = 0;
    s->numZ = 0;
    s->state_out_pos = 0;
    BZ_INITIALISE_CRC ( s->blockCRC );
-   for (i = 0; i < 256; i++) s->inUse[i] = False;
+   memset(s->inUse, 0, sizeof(s->inUse));
    s->blockNo++;
 }
 
@@ -220,7 +220,7 @@ void add_pair_to_block ( EState* s )
    for (i = 0; i < s->state_in_len; i++) {
       BZ_UPDATE_CRC( s->blockCRC, ch );
    }
-   s->inUse[s->state_in_ch] = True;
+   BZ2_SET_INUSE(s, s->state_in_ch);
    switch (s->state_in_len) {
       case 1:
          s->block[s->nblock] = (UChar)ch; s->nblock++;
@@ -235,7 +235,7 @@ void add_pair_to_block ( EState* s )
          s->block[s->nblock] = (UChar)ch; s->nblock++;
          break;
       default:
-         s->inUse[s->state_in_len-4] = True;
+         BZ2_SET_INUSE(s, s->state_in_len-4);
          s->block[s->nblock] = (UChar)ch; s->nblock++;
          s->block[s->nblock] = (UChar)ch; s->nblock++;
          s->block[s->nblock] = (UChar)ch; s->nblock++;
@@ -265,7 +265,7 @@ void flush_RL ( EState* s )
        zs->state_in_len == 1) {                   \
       UChar ch = (UChar)(zs->state_in_ch);        \
       BZ_UPDATE_CRC( zs->blockCRC, ch );          \
-      zs->inUse[zs->state_in_ch] = True;          \
+      BZ2_SET_INUSE(zs, zs->state_in_ch);         \
       zs->block[zs->nblock] = (UChar)ch;          \
       zs->nblock++;                               \
       zs->state_in_ch = zchh;                     \
