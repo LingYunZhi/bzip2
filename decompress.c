@@ -29,16 +29,30 @@
 
 #define NEED_BITS(lll,nnn)                        \
    case lll: s->state = lll;                      \
-   while (s->bsLive < nnn) {                      \
-      if (s->strm->avail_in == 0) RETURN(BZ_OK);  \
-      s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                       << (24 - s->bsLive);       \
-      s->bsLive += 8;                             \
-      s->strm->next_in++;                         \
-      s->strm->avail_in--;                        \
-      s->strm->total_in_lo32++;                   \
-      if (s->strm->total_in_lo32 == 0)            \
-         s->strm->total_in_hi32++;                \
+   if (__builtin_constant_p(nnn) && nnn <= 8) {   \
+     if (s->bsLive < nnn) {                       \
+        if (s->strm->avail_in == 0) RETURN(BZ_OK);\
+        s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
+                         << (24 - s->bsLive);     \
+        s->bsLive += 8;                           \
+        s->strm->next_in++;                       \
+        s->strm->avail_in--;                      \
+        s->strm->total_in_lo32++;                 \
+        if (s->strm->total_in_lo32 == 0)          \
+           s->strm->total_in_hi32++;              \
+     }                                            \
+   } else {                                       \
+     while (s->bsLive < nnn) {                    \
+        if (s->strm->avail_in == 0) RETURN(BZ_OK);\
+        s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
+                         << (24 - s->bsLive);     \
+        s->bsLive += 8;                           \
+        s->strm->next_in++;                       \
+        s->strm->avail_in--;                      \
+        s->strm->total_in_lo32++;                 \
+        if (s->strm->total_in_lo32 == 0)          \
+           s->strm->total_in_hi32++;              \
+     }                                            \
    }
 
 #define DROP_BITS(nnn)                            \
@@ -55,19 +69,21 @@
 
 #define GET_BIT(lll,uuu)                          \
    case lll: s->state = lll;                      \
-   if (!s->bsLive) {                              \
+   if (s->bsLive) {                               \
+     uuu = s->bsBuff >> 31;                       \
+     DROP_BITS(1)                                 \
+   } else {                                       \
       if (s->strm->avail_in == 0) RETURN(BZ_OK);  \
+      uuu = (*((UChar*)(s->strm->next_in))) >> 7; \
       s->bsBuff = ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                       << 24;                     \
-      s->bsLive = 8;                              \
+                       << 25;                     \
+      s->bsLive = 7;                              \
       s->strm->next_in++;                         \
       s->strm->avail_in--;                        \
       s->strm->total_in_lo32++;                   \
       if (s->strm->total_in_lo32 == 0)            \
          s->strm->total_in_hi32++;                \
-   }                                              \
-   uuu = s->bsBuff >> 31;                         \
-   DROP_BITS(1)
+   }
 
 /*---------------------------------------------------*/
 #define GET_MTF_VAL(label1,label2,lval)           \
