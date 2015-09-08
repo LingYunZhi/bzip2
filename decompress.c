@@ -27,22 +27,12 @@
 #define RETURN(rrr)                               \
    { retVal = rrr; goto save_state_and_return; };
 
-#define GET_BITS(lll,vvv,nnn)                     \
+#define NEED_BITS(lll,nnn)                        \
    case lll: s->state = lll;                      \
-   while (True) {                                 \
-      if (s->bsLive >= nnn) {                     \
-         UInt32 v;                                \
-         v = (s->bsBuff >>                        \
-             (s->bsLive-nnn)) & ((1 << nnn)-1);   \
-         s->bsLive -= nnn;                        \
-         vvv = v;                                 \
-         break;                                   \
-      }                                           \
+   while (s->bsLive < nnn) {                      \
       if (s->strm->avail_in == 0) RETURN(BZ_OK);  \
-      s->bsBuff                                   \
-         = (s->bsBuff << 8) |                     \
-           ((UInt32)                              \
-              (*((UChar*)(s->strm->next_in))));   \
+      s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
+                       << (24 - s->bsLive);       \
       s->bsLive += 8;                             \
       s->strm->next_in++;                         \
       s->strm->avail_in--;                        \
@@ -51,11 +41,33 @@
          s->strm->total_in_hi32++;                \
    }
 
+#define DROP_BITS(nnn)                            \
+   s->bsBuff <<= nnn;                             \
+   s->bsLive -= nnn;
+
+#define GET_BITS(lll,vvv,nnn)                     \
+   NEED_BITS(lll,nnn);                            \
+   vvv = s->bsBuff >> (32 - nnn);                 \
+   DROP_BITS(nnn)
+
 #define GET_UCHAR(lll,uuu)                        \
    GET_BITS(lll,uuu,8)
 
 #define GET_BIT(lll,uuu)                          \
-   GET_BITS(lll,uuu,1)
+   case lll: s->state = lll;                      \
+   if (!s->bsLive) {                              \
+      if (s->strm->avail_in == 0) RETURN(BZ_OK);  \
+      s->bsBuff = ((UInt32)(*((UChar*)(s->strm->next_in)))) \
+                       << 24;                     \
+      s->bsLive = 8;                              \
+      s->strm->next_in++;                         \
+      s->strm->avail_in--;                        \
+      s->strm->total_in_lo32++;                   \
+      if (s->strm->total_in_lo32 == 0)            \
+         s->strm->total_in_hi32++;                \
+   }                                              \
+   uuu = s->bsBuff >> 31;                         \
+   DROP_BITS(1)
 
 /*---------------------------------------------------*/
 #define GET_MTF_VAL(label1,label2,lval)           \
@@ -255,8 +267,8 @@ Int32 BZ2_decompress ( DState* s )
       GET_BITS(BZ_X_MAPPING_1, inUse16, 16);
 
       s->nInUse = 0;
-      for (i = 0; i < 16; i++)
-         if (inUse16 & (1U << (15 - i))) {
+      for (i = 0; inUse16; i++) {
+         if (inUse16 & 0x8000U) {
             UInt16 inUse;
             GET_BITS(BZ_X_MAPPING_2, inUse, 16);
             for (j = 0; inUse; j++) {
@@ -266,7 +278,9 @@ Int32 BZ2_decompress ( DState* s )
                }
                inUse <<= 1;
             }
-        }
+         }
+         inUse16 <<= 1;
+      }
       if (s->nInUse == 0) RETURN(BZ_DATA_ERROR);
       alphaSize = s->nInUse+2;
 
@@ -276,13 +290,10 @@ Int32 BZ2_decompress ( DState* s )
       GET_BITS(BZ_X_SELECTOR_2, nSelectors, 15);
       if (nSelectors < 1) RETURN(BZ_DATA_ERROR);
       for (i = 0; i < nSelectors; i++) {
-         j = 0;
-         while (True) {
-            GET_BIT(BZ_X_SELECTOR_3, uc);
-            if (uc == 0) break;
-            j++;
-            if (j >= nGroups) RETURN(BZ_DATA_ERROR);
-         }
+         NEED_BITS(BZ_X_SELECTOR_3, nGroups);
+         j = __builtin_clz(~s->bsBuff);
+         if (j >= nGroups) RETURN(BZ_DATA_ERROR);
+         DROP_BITS(j + 1);
          s->selectorMtf[i] = j;
       }
 
@@ -309,7 +320,7 @@ Int32 BZ2_decompress ( DState* s )
                GET_BIT(BZ_X_CODING_2, uc);
                if (uc == 0) break;
                GET_BIT(BZ_X_CODING_3, uc);
-               if (uc == 0) curr++; else curr--;
+               curr += !uc * 2 - 1;
             }
             s->len[t][i] = curr;
          }
