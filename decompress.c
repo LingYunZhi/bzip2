@@ -385,8 +385,7 @@ Int32 BZ2_decompress ( DState* s )
                   million should guard against overflow without
                   rejecting any legitimate inputs. */
                if (N >= 2*1024*1024) RETURN(BZ_DATA_ERROR);
-               if (nextSym == BZ_RUNA) es = es + (0+1) * N; else
-               if (nextSym == BZ_RUNB) es = es + (1+1) * N;
+               es += N << (nextSym == BZ_RUNB);
                N = N * 2;
                GET_MTF_VAL(BZ_X_MTF_3, BZ_X_MTF_4, nextSym);
             }
