@@ -453,14 +453,11 @@ Int32 BZ2_decompress ( DState* s )
                   while (pp > s->mtfbase[lno]) { 
                      s->mtfa[pp] = s->mtfa[pp-1]; pp--; 
                   };
-                  s->mtfbase[lno]++;
-                  while (lno > 0) {
-                     s->mtfbase[lno]--;
+                  do {
+                     s->mtfbase[lno-1]--;
                      s->mtfa[s->mtfbase[lno]] 
-                        = s->mtfa[s->mtfbase[lno-1] + MTFL_SIZE - 1];
-                     lno--;
-                  }
-                  s->mtfbase[0]--;
+                        = s->mtfa[s->mtfbase[lno-1] + MTFL_SIZE];
+                  } while (--lno > 0);
                   s->mtfa[s->mtfbase[0]] = uc;
                   if (s->mtfbase[0] == 0) {
                      kk = MTFA_SIZE;
