@@ -68,22 +68,7 @@
    GET_BITS(lll,uuu,8)
 
 #define GET_BIT(lll,uuu)                          \
-   case lll: s->state = lll;                      \
-   if (s->bsLive) {                               \
-     uuu = s->bsBuff >> 31;                       \
-     DROP_BITS(1)                                 \
-   } else {                                       \
-      if (s->strm->avail_in == 0) RETURN(BZ_OK);  \
-      uuu = (*((UChar*)(s->strm->next_in))) >> 7; \
-      s->bsBuff = ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                       << 25;                     \
-      s->bsLive = 7;                              \
-      s->strm->next_in++;                         \
-      s->strm->avail_in--;                        \
-      s->strm->total_in_lo32++;                   \
-      if (s->strm->total_in_lo32 == 0)            \
-         s->strm->total_in_hi32++;                \
-   }
+   GET_BITS(lll,uuu,1)
 
 /*---------------------------------------------------*/
 #define GET_MTF_VAL(label1,label2,lval)           \
@@ -391,7 +376,7 @@ Int32 BZ2_decompress ( DState* s )
 
          if (nextSym == BZ_RUNA || nextSym == BZ_RUNB) {
 
-            es = -1;
+            es = 0;
             N = 1;
             do {
                /* Check that N doesn't get too big, so that es doesn't
@@ -407,7 +392,6 @@ Int32 BZ2_decompress ( DState* s )
             }
                while (nextSym == BZ_RUNA || nextSym == BZ_RUNB);
 
-            es++;
             uc = s->seqToUnseq[ s->mtfa[s->mtfbase[0]] ];
             s->unzftab[uc] += es;
 
