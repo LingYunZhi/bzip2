@@ -286,10 +286,9 @@ void sendMTFValues ( EState* s )
    { 
       Int32 nPart, remF, tFreq, aFreq;
 
-      nPart = nGroups;
       remF  = s->nMTF;
       gs = 0;
-      while (nPart > 0) {
+      for (nPart = nGroups; nPart > 0; nPart--) {
          tFreq = remF / nPart;
          ge = gs-1;
          aFreq = 0;
@@ -314,7 +313,6 @@ void sendMTFValues ( EState* s )
          memset(s->len[nPart-1], BZ_GREATER_ICOST, alphaSize);
          memset(&s->len[nPart-1][gs], BZ_LESSER_ICOST, ge + 1 - gs);
 
-         nPart--;
          gs = ge+1;
          remF -= aFreq;
       }
@@ -520,9 +518,11 @@ void sendMTFValues ( EState* s )
    nBytes = s->numZ;
 
    for (t = 0; t < nGroups; t++) {
-      bsW ( s, 6, s->len[t][0] << 1 );
+      Int32 curr = s->len[t][0];
+      bsW ( s, 6, curr << 1 );
       for (i = 1; i < alphaSize; i++) {
-         j = s->len[t][i] - s->len[t][i - 1];
+         j = s->len[t][i] - curr;
+         curr = s->len[t][i];
          if (j > 0) {
             if (j > 12) {
                bsW(s,24,0xaaaaaa);
