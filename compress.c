@@ -46,7 +46,23 @@ void BZ2_bsInitWrite ( EState* s )
 static
 void bsFinishWrite ( EState* s )
 {
-   while (s->bsLive > 0) {
+   if (s->bsLive > 0) {
+      s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
+      s->numZ++;
+      s->bsBuff = 0;
+      s->bsLive = 0;
+   }
+}
+
+
+/*---------------------------------------------------*/
+static
+__inline__
+void bsW ( EState* s, Int32 n, UInt32 v )
+{
+   s->bsLive += n;
+   s->bsBuff |= (v << (32 - s->bsLive));
+   while (s->bsLive >= 8) {
       s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
       s->numZ++;
       s->bsBuff <<= 8;
@@ -56,26 +72,19 @@ void bsFinishWrite ( EState* s )
 
 
 /*---------------------------------------------------*/
-#define bsNEEDW(nz)                           \
-{                                             \
-   while (s->bsLive >= 8) {                   \
-      s->zbits[s->numZ]                       \
-         = (UChar)(s->bsBuff >> 24);          \
-      s->numZ++;                              \
-      s->bsBuff <<= 8;                        \
-      s->bsLive -= 8;                         \
-   }                                          \
-}
-
-
-/*---------------------------------------------------*/
 static
 __inline__
-void bsW ( EState* s, Int32 n, UInt32 v )
+void bsW1 ( EState* s, UInt32 v )
 {
-   bsNEEDW ( n );
-   s->bsLive += n;
-   s->bsBuff |= (v << (32 - s->bsLive));
+   s->bsLive++;
+   if (v)
+      s->bsBuff |= (v << (32 - s->bsLive));
+   if (s->bsLive == 8) {
+      s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
+      s->numZ++;
+      s->bsBuff = 0;
+      s->bsLive = 0;
+   }
 }
 
 
@@ -330,16 +339,13 @@ void sendMTFValues ( EState* s )
             s->len_pack[v][0] = (s->len[1][v] << 16) | s->len[0][v];
             s->len_pack[v][1] = (s->len[3][v] << 16) | s->len[2][v];
             s->len_pack[v][2] = (s->len[5][v] << 16) | s->len[4][v];
-	 }
+	      }
       }
 
       nSelectors = 0;
       totc = 0;
-      gs = 0;
-      while (True) {
-
+      for (gs = 0; gs < s->nMTF; gs = ge + 1) {
          /*--- Set group start & end marks. --*/
-         if (gs >= s->nMTF) break;
          ge = gs + BZ_G_SIZE - 1; 
          if (ge >= s->nMTF) ge = s->nMTF-1;
 
@@ -424,8 +430,6 @@ void sendMTFValues ( EState* s )
             for (i = gs; i <= ge; i++)
                s->rfreq[bt][ mtfv[i] ]++;
          }
-
-         gs = ge+1;
       }
       if (s->verbosity >= 3) {
          VPrintf2 ( "      pass %d: size is %d, grp uses are ", 
@@ -508,7 +512,7 @@ void sendMTFValues ( EState* s )
    bsW ( s, 15, nSelectors );
    for (i = 0; i < nSelectors; i++) { 
       for (j = 0; j < s->selectorMtf[i]; j++) bsW(s,1,1);
-      bsW(s,1,0);
+      bsW1 ( s, 0 );
    }
    if (s->verbosity >= 3)
       VPrintf1( "selectors %d, ", s->numZ-nBytes );
@@ -522,7 +526,7 @@ void sendMTFValues ( EState* s )
       for (i = 0; i < alphaSize; i++) {
          while (curr < s->len[t][i]) { bsW(s,2,2); curr++; /* 10 */ };
          while (curr > s->len[t][i]) { bsW(s,2,3); curr--; /* 11 */ };
-         bsW ( s, 1, 0 );
+         bsW1 ( s, 0 );
       }
    }
 
@@ -532,9 +536,7 @@ void sendMTFValues ( EState* s )
    /*--- And finally, the block data proper ---*/
    nBytes = s->numZ;
    selCtr = 0;
-   gs = 0;
-   while (True) {
-      if (gs >= s->nMTF) break;
+   for (gs = 0; gs < s->nMTF; gs = ge+1) {
       ge = gs + BZ_G_SIZE - 1; 
       if (ge >= s->nMTF) ge = s->nMTF-1;
       AssertH ( s->selector[selCtr] < nGroups, 3006 );
@@ -576,7 +578,6 @@ void sendMTFValues ( EState* s )
       }
 
 
-      gs = ge+1;
       selCtr++;
    }
    AssertH( selCtr == nSelectors, 3007 );
@@ -633,7 +634,7 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
          so as to maintain backwards compatibility with
          older versions of bzip2.
       --*/
-      bsW(s,1,0);
+      bsW1(s,0);
 
       bsW ( s, 24, s->origPtr );
       generateMTFValues ( s );
