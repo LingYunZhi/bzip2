@@ -314,15 +314,30 @@ Int32 BZ2_decompress ( DState* s )
 
       /*--- Now the coding tables ---*/
       for (t = 0; t < nGroups; t++) {
-         GET_BITS(BZ_X_CODING_1, curr, 5);
-         for (i = 0; i < alphaSize; i++) {
-            while (True) {
+         GET_BITS(BZ_X_CODING_1, curr, 6);
+         if (curr & 1)
+            RETURN(BZ_DATA_ERROR);
+         curr >>= 1;
+         if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
+         s->len[t][0] = curr;
+
+         for (i = 1; i < alphaSize; i++) {
+            NEED_BITS(BZ_X_CODING_2, 24);
+            if (s->bsBuff & 0x80000000) {
+               j = !(s->bsBuff & 0x40000000) ? 0 : 0x55555500;
+               if ((s->bsBuff & 0xaaaaaa00) == 0xaaaaaa00) {
+                  if ((s->bsBuff ^ j) & 0x55555500) RETURN(BZ_DATA_ERROR);
+                  curr += !j ? 12 : -12;
+                  DROP_BITS(24);
+                  NEED_BITS(BZ_X_CODING_3, 24);
+               }
+               uc = __builtin_clz(~(s->bsBuff | 0x55555500));
+               if (uc && ((s->bsBuff ^ j) & 0x55555500) >> (32 - uc)) RETURN(BZ_DATA_ERROR);
+               curr += (!j ? uc : -uc) / 2;
+               DROP_BITS(uc);
                if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
-               GET_BIT(BZ_X_CODING_2, uc);
-               if (uc == 0) break;
-               GET_BIT(BZ_X_CODING_3, uc);
-               curr += !uc * 2 - 1;
             }
+            DROP_BITS(1);
             s->len[t][i] = curr;
          }
       }
