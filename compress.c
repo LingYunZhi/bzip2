@@ -510,9 +510,8 @@ void sendMTFValues ( EState* s )
    nBytes = s->numZ;
    bsW ( s, 3, nGroups );
    bsW ( s, 15, nSelectors );
-   for (i = 0; i < nSelectors; i++) { 
-      for (j = 0; j < s->selectorMtf[i]; j++) bsW(s,1,1);
-      bsW1 ( s, 0 );
+   for (i = 0; i < nSelectors; i++) {
+      bsW(s, 1 + s->selectorMtf[i], (1U << (1 + s->selectorMtf[i])) - 2);
    }
    if (s->verbosity >= 3)
       VPrintf1( "selectors %d, ", s->numZ-nBytes );
