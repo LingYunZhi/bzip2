@@ -520,11 +520,25 @@ void sendMTFValues ( EState* s )
    nBytes = s->numZ;
 
    for (t = 0; t < nGroups; t++) {
-      Int32 curr = s->len[t][0];
-      bsW ( s, 5, curr );
-      for (i = 0; i < alphaSize; i++) {
-         while (curr < s->len[t][i]) { bsW(s,2,2); curr++; /* 10 */ };
-         while (curr > s->len[t][i]) { bsW(s,2,3); curr--; /* 11 */ };
+      bsW ( s, 6, s->len[t][0] << 1 );
+      for (i = 1; i < alphaSize; i++) {
+         j = s->len[t][i] - s->len[t][i - 1];
+         if (j > 0) {
+            if (j > 12) {
+               bsW(s,24,0xaaaaaa);
+               j -= 12;
+            }
+            j *= 2;
+            bsW(s,j,0xaaaaaa & ((1 << j) - 1));
+         }
+         else if (j < 0) {
+            if (j < -12) {
+               bsW(s,24,0xffffff);
+               j += 12;
+            }
+            j *= -2;
+            bsW(s,j,((1 << j) - 1));
+         }
          bsW1 ( s, 0 );
       }
    }
