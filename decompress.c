@@ -332,9 +332,11 @@ Int32 BZ2_decompress ( DState* s )
                   NEED_BITS(BZ_X_CODING_3, 24);
                }
                uc = __builtin_clz(~(s->bsBuff | 0x55555500));
-               if (uc && ((s->bsBuff ^ j) & 0x55555500) >> (32 - uc)) RETURN(BZ_DATA_ERROR);
-               curr += (!j ? uc : -uc) / 2;
-               DROP_BITS(uc);
+               if (uc) {
+                  if (((s->bsBuff ^ j) & 0x55555500) >> (32 - uc)) RETURN(BZ_DATA_ERROR);
+                  curr += (!j ? uc : -uc) / 2;
+                  DROP_BITS(uc);
+               }
                if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
             }
             DROP_BITS(1);
