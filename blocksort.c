@@ -133,9 +133,8 @@ void fallbackQSort3 ( UInt32* fmap,
       unLo = ltLo = lo;
       unHi = gtHi = hi;
 
-      while (1) {
-         while (1) {
-            if (unLo > unHi) break;
+      do {
+         while (unLo <= unHi) {
             n = (Int32)eclass[fmap[unLo]] - (Int32)med;
             if (n == 0) { 
                fswap(fmap[unLo], fmap[ltLo]); 
@@ -145,8 +144,7 @@ void fallbackQSort3 ( UInt32* fmap,
             if (n > 0) break;
             unLo++;
          }
-         while (1) {
-            if (unLo > unHi) break;
+         while (unLo <= unHi) {
             n = (Int32)eclass[fmap[unHi]] - (Int32)med;
             if (n == 0) { 
                fswap(fmap[unHi], fmap[gtHi]); 
@@ -156,9 +154,10 @@ void fallbackQSort3 ( UInt32* fmap,
             if (n < 0) break;
             unHi--;
          }
-         if (unLo > unHi) break;
-         fswap(fmap[unLo], fmap[unHi]); unLo++; unHi--;
-      }
+         if (unLo <= unHi) {
+            fswap(fmap[unLo], fmap[unHi]); unLo++; unHi--;
+         }
+      } while (unLo <= unHi);
 
       AssertD ( unHi == unLo-1, "fallbackQSort3(2)" );
 
@@ -259,7 +258,7 @@ void fallbackSort ( UInt32* fmap,
 
    /*-- the log(N) loop --*/
    H = 1;
-   while (1) {
+   do {
 
       if (verb >= 4) 
          VPrintf1 ( "        depth %6d has ", H );
@@ -321,8 +320,7 @@ void fallbackSort ( UInt32* fmap,
          VPrintf1 ( "%6d unresolved strings\n", nNotDone );
 
       H *= 2;
-      if (H > nblock || nNotDone == 0) break;
-   }
+   } while (H <= nblock && nNotDone != 0);
 
    /*-- 
       Reconstruct the original block in
@@ -511,13 +509,12 @@ void mainSimpleSort ( UInt32* ptr,
 
    hp = 0;
    while (incs[hp] < bigN) hp++;
-   hp--;
 
-   for (; hp >= 0; hp--) {
+   while (--hp >= 0) {
       h = incs[hp];
 
       i = lo + h;
-      while (True) {
+      do {
 
          /*-- copy 1 --*/
          if (i > hi) break;
@@ -561,8 +558,7 @@ void mainSimpleSort ( UInt32* ptr,
          ptr[j] = v;
          i++;
 
-         if (*budget < 0) return;
-      }
+      } while (*budget >= 0);
    }
 }
 
@@ -673,9 +669,8 @@ void mainQSort3 ( UInt32* ptr,
       unLo = ltLo = lo;
       unHi = gtHi = hi;
 
-      while (True) {
-         while (True) {
-            if (unLo > unHi) break;
+      do {
+         while (unLo <= unHi) {
             n = ((Int32)block[ptr[unLo]+d]) - med;
             if (n == 0) { 
                mswap(ptr[unLo], ptr[ltLo]); 
@@ -684,8 +679,7 @@ void mainQSort3 ( UInt32* ptr,
             if (n >  0) break;
             unLo++;
          }
-         while (True) {
-            if (unLo > unHi) break;
+         while (unLo <= unHi) {
             n = ((Int32)block[ptr[unHi]+d]) - med;
             if (n == 0) { 
                mswap(ptr[unHi], ptr[gtHi]); 
@@ -694,9 +688,10 @@ void mainQSort3 ( UInt32* ptr,
             if (n <  0) break;
             unHi--;
          }
-         if (unLo > unHi) break;
-         mswap(ptr[unLo], ptr[unHi]); unLo++; unHi--;
-      }
+         if (unLo <= unHi) {
+            mswap(ptr[unLo], ptr[unHi]); unLo++; unHi--;
+         }
+      } while (unLo <= unHi);
 
       AssertD ( unHi == unLo-1, "mainQSort3(2)" );
 
@@ -891,7 +886,7 @@ void mainSort ( UInt32* ptr,
          if (j != ss) {
             sb = (ss << 8) + j;
             if ( ! (ftab[sb] & SETMASK) ) {
-               Int32 lo = ftab[sb]   & CLEARMASK;
+               Int32 lo =  ftab[sb  ] & CLEARMASK;
                Int32 hi = (ftab[sb+1] & CLEARMASK) - 1;
                if (hi > lo) {
                   if (verb >= 4)
@@ -921,7 +916,7 @@ void mainSort ( UInt32* ptr,
       --*/
       {
          for (j = 0; j <= 255; j++) {
-            copyStart[j] =  ftab[(j << 8) + ss]     & CLEARMASK;
+            copyStart[j] =  ftab[(j << 8) + ss    ] & CLEARMASK;
             copyEnd  [j] = (ftab[(j << 8) + ss + 1] & CLEARMASK) - 1;
          }
          for (j = ftab[ss << 8] & CLEARMASK; j < copyStart[ss]; j++) {
@@ -930,7 +925,7 @@ void mainSort ( UInt32* ptr,
             if (!bigDone[c1])
                ptr[ copyStart[c1]++ ] = k;
          }
-         for (j = (ftab[(ss+1) << 8] & CLEARMASK) - 1; j > copyEnd[ss]; j--) {
+         for (j = (ftab[(ss << 8) + 256] & CLEARMASK) - 1; j > copyEnd[ss]; j--) {
             k = ptr[j]-1; if (k < 0) k += nblock;
             c1 = block[k];
             if (!bigDone[c1]) 
@@ -991,8 +986,8 @@ void mainSort ( UInt32* ptr,
       bigDone[ss] = True;
 
       if (i < 255) {
-         Int32 bbStart  = ftab[ss << 8] & CLEARMASK;
-         Int32 bbSize   = (ftab[(ss+1) << 8] & CLEARMASK) - bbStart;
+         Int32 bbStart  =  ftab[ ss << 8       ] & CLEARMASK;
+         Int32 bbSize   = (ftab[(ss << 8) + 256] & CLEARMASK) - bbStart;
          Int32 shifts   = 0;
 
          while ((bbSize >> shifts) > 65534) shifts++;
