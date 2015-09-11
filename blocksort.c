@@ -375,55 +375,46 @@ Bool mainGtU ( UInt32  i1,
    UInt16 s1, s2;
 
    AssertD ( i1 != i2, "mainGtU" );
+
    /* 1 */
    c1 = block[i1]; c2 = block[i2];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 2 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+1]; c2 = block[i2+1];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 3 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+2]; c2 = block[i2+2];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 4 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+3]; c2 = block[i2+3];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 5 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+4]; c2 = block[i2+4];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 6 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+5]; c2 = block[i2+5];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 7 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+6]; c2 = block[i2+6];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 8 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+7]; c2 = block[i2+7];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 9 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+8]; c2 = block[i2+8];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 10 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+9]; c2 = block[i2+9];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 11 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+10]; c2 = block[i2+10];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
    /* 12 */
-   c1 = block[i1]; c2 = block[i2];
+   c1 = block[i1+11]; c2 = block[i2+11];
    if (c1 != c2) return (c1 > c2);
-   i1++; i2++;
 
+   i1 += 12;
+   i2 += 12;
    k = nblock + 8;
 
    do {
@@ -432,57 +423,50 @@ Bool mainGtU ( UInt32  i1,
       if (c1 != c2) return (c1 > c2);
       s1 = quadrant[i1]; s2 = quadrant[i2];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 2 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+1]; c2 = block[i2+1];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+1]; s2 = quadrant[i2+1];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 3 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+2]; c2 = block[i2+2];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+2]; s2 = quadrant[i2+2];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 4 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+3]; c2 = block[i2+3];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+3]; s2 = quadrant[i2+3];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 5 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+4]; c2 = block[i2+4];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+4]; s2 = quadrant[i2+4];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 6 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+5]; c2 = block[i2+5];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+5]; s2 = quadrant[i2+5];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 7 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+6]; c2 = block[i2+6];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+6]; s2 = quadrant[i2+6];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
       /* 8 */
-      c1 = block[i1]; c2 = block[i2];
+      c1 = block[i1+7]; c2 = block[i2+7];
       if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
+      s1 = quadrant[i1+7]; s2 = quadrant[i2+7];
       if (s1 != s2) return (s1 > s2);
-      i1++; i2++;
 
+      i1 += 8;
       if (i1 >= nblock) i1 -= nblock;
+      i2 += 8;
       if (i2 >= nblock) i2 -= nblock;
 
-      k -= 8;
       (*budget)--;
-   }
-      while (k >= 0);
+      k -= 8;
+   } while (k >= 0);
 
    return False;
 }
