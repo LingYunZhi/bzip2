@@ -312,7 +312,7 @@ void fallbackSort ( UInt32* fmap,
          if (r >= nblock) break;
 
          /*-- now [l, r] bracket current bucket --*/
-         if (r > l) {
+         /*if (r > l)*/ {
             nNotDone += (r - l + 1);
             fallbackQSort3 ( fmap, eclass, l, r );
 
