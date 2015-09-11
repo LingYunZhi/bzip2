@@ -868,9 +868,8 @@ void mainSort ( UInt32* ptr,
             while ( BIGFREQ(runningOrder[j-h]) > BIGFREQ(vv) ) {
                runningOrder[j] = runningOrder[j-h];
                j = j - h;
-               if (j <= (h - 1)) goto zero;
+               if (j <= (h - 1)) break;
             }
-            zero:
             runningOrder[j] = vv;
          }
       } while (h != 1);
