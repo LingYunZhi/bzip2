@@ -384,9 +384,9 @@ void sendMTFValues ( EState* s )
 
          } else {
 	    /*--- slow version which correctly handles all situations ---*/
-            for (i = gs; i <= ge; i++) { 
-               UInt16 icv = mtfv[i];
-               for (t = 0; t < nGroups; t++) cost[t] += s->len[t][icv];
+            for (t = 0; t < nGroups; t++) {
+               for (i = gs; i <= ge; i++)
+                  cost[t] += s->len[t][mtfv[i]];
             }
          }
  
