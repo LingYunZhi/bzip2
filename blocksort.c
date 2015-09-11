@@ -19,6 +19,7 @@
    ------------------------------------------------------------------ */
 
 
+#include <stdlib.h>
 #include "bzlib_private.h"
 
 /*---------------------------------------------*/
@@ -228,9 +229,9 @@ void fallbackSort ( UInt32* fmap,
    --*/
    if (verb >= 4)
       VPrintf0 ( "        bucket sorting ...\n" );
-   for (i = 0; i < 257;    i++) ftab[i] = 0;
+   memset(ftab, 0, sizeof(ftab));
    for (i = 0; i < nblock; i++) ftab[eclass8[i]]++;
-   for (i = 0; i < 256;    i++) ftabCopy[i] = ftab[i];
+   memcpy(ftabCopy, ftab, sizeof(ftabCopy));
    for (i = 1; i < 257;    i++) ftab[i] += ftab[i-1];
 
    for (i = 0; i < nblock; i++) {
@@ -241,7 +242,7 @@ void fallbackSort ( UInt32* fmap,
    }
 
    nBhtab = 2 + (nblock / 32);
-   for (i = 0; i < nBhtab; i++) bhtab[i] = 0;
+   memset(bhtab, 0, sizeof(bhtab[0]) * nBhtab);
    for (i = 0; i < 256; i++) SET_BH(ftab[i]);
 
    /*--
@@ -778,35 +779,28 @@ void mainSort ( UInt32* ptr,
    if (verb >= 4) VPrintf0 ( "        main sort initialise ...\n" );
 
    /*-- set up the 2-byte frequency table --*/
-   for (i = 65536; i >= 0; i--) ftab[i] = 0;
+   memset(ftab, 0, sizeof(ftab[0]) * 65537);
 
    j = block[0] << 8;
    i = nblock-1;
    for (; i >= 3; i -= 4) {
-      quadrant[i] = 0;
       j = (j >> 8) | ( ((UInt16)block[i]) << 8);
       ftab[j]++;
-      quadrant[i-1] = 0;
       j = (j >> 8) | ( ((UInt16)block[i-1]) << 8);
       ftab[j]++;
-      quadrant[i-2] = 0;
       j = (j >> 8) | ( ((UInt16)block[i-2]) << 8);
       ftab[j]++;
-      quadrant[i-3] = 0;
       j = (j >> 8) | ( ((UInt16)block[i-3]) << 8);
       ftab[j]++;
    }
    for (; i >= 0; i--) {
-      quadrant[i] = 0;
       j = (j >> 8) | ( ((UInt16)block[i]) << 8);
       ftab[j]++;
    }
 
    /*-- (emphasises close relationship of block & quadrant) --*/
-   for (i = 0; i < BZ_N_OVERSHOOT; i++) {
-      block   [nblock+i] = block[i];
-      quadrant[nblock+i] = 0;
-   }
+   memcpy(block + nblock, block, sizeof(block[0]) * BZ_N_OVERSHOOT);
+   memset(quadrant, 0, sizeof(quadrant[0]) * (nblock + BZ_N_OVERSHOOT));
 
    if (verb >= 4) VPrintf0 ( "        bucket sorting ...\n" );
 
@@ -845,10 +839,9 @@ void mainSort ( UInt32* ptr,
       Calculate the running order, from smallest to largest
       big bucket.
    --*/
-   for (i = 0; i <= 255; i++) {
-      bigDone     [i] = False;
+   memset(bigDone, 0, sizeof(bigDone[0]) * 256);
+   for (i = 0; i <= 255; i++)
       runningOrder[i] = i;
-   }
 
    {
       Int32 vv;
