@@ -231,7 +231,16 @@ void fallbackSort ( UInt32* fmap,
    memset(ftab, 0, sizeof(ftab));
    for (i = 0; i < nblock; i++) ftab[eclass8[i]]++;
    memcpy(ftabCopy, ftab, sizeof(ftabCopy));
-   for (i = 1; i < 257;    i++) ftab[i] += ftab[i-1];
+   for (i = 0; i < 256; i += 8) {
+      ftab[i+1] += ftab[i+0];
+      ftab[i+2] += ftab[i+1];
+      ftab[i+3] += ftab[i+2];
+      ftab[i+4] += ftab[i+3];
+      ftab[i+5] += ftab[i+4];
+      ftab[i+6] += ftab[i+5];
+      ftab[i+7] += ftab[i+6];
+      ftab[i+8] += ftab[i+7];
+   }
 
    for (i = 0; i < nblock; i++) {
       j = eclass8[i];
@@ -800,7 +809,16 @@ void mainSort ( UInt32* ptr,
    if (verb >= 4) VPrintf0 ( "        bucket sorting ...\n" );
 
    /*-- Complete the initial radix sort --*/
-   for (i = 1; i <= 65536; i++) ftab[i] += ftab[i-1];
+   for (i = 0; i < 65536; i += 8) {
+      ftab[i+1] += ftab[i+0];
+      ftab[i+2] += ftab[i+1];
+      ftab[i+3] += ftab[i+2];
+      ftab[i+4] += ftab[i+3];
+      ftab[i+5] += ftab[i+4];
+      ftab[i+6] += ftab[i+5];
+      ftab[i+7] += ftab[i+6];
+      ftab[i+8] += ftab[i+7];
+   }
 
    s = block[0] << 8;
    i = nblock-1;
@@ -942,7 +960,16 @@ void mainSort ( UInt32* ptr,
                 (copyStart[ss] == 0 && copyEnd[ss] == nblock-1),
                 1007 )
 
-      for (j = 0; j <= 255; j++) ftab[(j << 8) + ss] |= SETMASK;
+      for (j = 0; j < 256; j += 8) {
+         ftab[(j << 8) + ss + (0 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (1 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (2 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (3 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (4 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (5 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (6 << 8)] |= SETMASK;
+         ftab[(j << 8) + ss + (7 << 8)] |= SETMASK;
+      }
 
       /*--
          Step 3:
@@ -1049,7 +1076,7 @@ void BZ2_blockSort ( EState* s )
          the first section of arr2.
       */
       i = nblock+BZ_N_OVERSHOOT;
-      if (i & 1) i++;
+      i += (i & 1);
       quadrant = (UInt16*)(&(block[i]));
 
       /* (wfact-1) / 3 puts the default-factor-30
