@@ -273,21 +273,32 @@ void fallbackSort ( UInt32* fmap,
       nNotDone = 0;
       r = -1;
       while (1) {
+         UInt32 curr;
 
 	 /*-- find the next non-singleton bucket --*/
          k = r + 1;
-         while (ISSET_BH(k) && UNALIGNED_BH(k)) k++;
-         if (ISSET_BH(k)) {
-            while (WORD_BH(k) == 0xffffffff) k += 32;
-            while (ISSET_BH(k)) k++;
+         curr = WORD_BH(k);
+         if (UNALIGNED_BH(k)) {
+            curr |= (1 << (k & 31)) - 1;
+            k -= k & 31;
          }
+         while (!(curr + 1)) {
+            k += 32;
+            curr = WORD_BH(k);
+         }
+         k += 31 - __builtin_clz(~curr & (curr + 1));
          l = k - 1;
          if (l >= nblock) break;
-         while (!ISSET_BH(k) && UNALIGNED_BH(k)) k++;
-         if (!ISSET_BH(k)) {
-            while (WORD_BH(k) == 0x00000000) k += 32;
-            while (!ISSET_BH(k)) k++;
+
+         if (UNALIGNED_BH(k)) {
+            curr &= curr + 1;
+            k -= k & 31;
          }
+         while (!curr) {
+            k += 32;
+            curr = WORD_BH(k);
+         }
+         k += 31 - __builtin_clz(curr & -curr);
          r = k - 1;
          if (r >= nblock) break;
 
