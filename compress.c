@@ -493,7 +493,7 @@ void sendMTFValues ( EState* s )
       nBytes = s->numZ;
       for (i = 0; i < 16; i++)
          if (s->inUse[i])
-             inUse16 |= 1U << (15 - i);
+             inUse16 |= 0x8000U >> i;
       bsW(s,16,inUse16);
 
       for (i = 0; i < 16; i++)
