@@ -251,7 +251,16 @@ void fallbackSort ( UInt32* fmap,
 
    nBhtab = 2 + (nblock / 32);
    memset(bhtab, 0, sizeof(bhtab[0]) * nBhtab);
-   for (i = 0; i < 256; i++) SET_BH(ftab[i]);
+   for (i = 0; i < 256; i += 8) {
+      SET_BH(ftab[i + 0]);
+      SET_BH(ftab[i + 1]);
+      SET_BH(ftab[i + 2]);
+      SET_BH(ftab[i + 3]);
+      SET_BH(ftab[i + 4]);
+      SET_BH(ftab[i + 5]);
+      SET_BH(ftab[i + 6]);
+      SET_BH(ftab[i + 7]);
+  }
 
    /*--
       Inductively refine the buckets.  Kind-of an
