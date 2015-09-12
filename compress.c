@@ -363,20 +363,20 @@ void sendMTFValues ( EState* s )
             Calculate the cost of this group as coded
             by each of the coding tables.
          --*/
-         for (t = 0; t < nGroups; t++) cost[t] = 0;
-
-         if (nGroups == 6 && 50 == ge-gs+1) {
+         if (nGroups == 6) {
             /*--- fast track the common case ---*/
             register UInt32 cost01, cost23, cost45;
             register UInt16 icv;
             cost01 = cost23 = cost45 = 0;
 
 #           define BZ_ITER(nn)                \
-               icv = mtfv[gs+(nn)];           \
+            case 50 - (nn):                   \
+               icv = mtfv[ge - (49 - (nn))];  \
                cost01 += s->len_pack[icv][0]; \
                cost23 += s->len_pack[icv][1]; \
                cost45 += s->len_pack[icv][2]; \
 
+            switch (ge + 1 - gs)  {
             BZ_ITER(0);  BZ_ITER(1);  BZ_ITER(2);  BZ_ITER(3);  BZ_ITER(4);
             BZ_ITER(5);  BZ_ITER(6);  BZ_ITER(7);  BZ_ITER(8);  BZ_ITER(9);
             BZ_ITER(10); BZ_ITER(11); BZ_ITER(12); BZ_ITER(13); BZ_ITER(14);
@@ -387,6 +387,7 @@ void sendMTFValues ( EState* s )
             BZ_ITER(35); BZ_ITER(36); BZ_ITER(37); BZ_ITER(38); BZ_ITER(39);
             BZ_ITER(40); BZ_ITER(41); BZ_ITER(42); BZ_ITER(43); BZ_ITER(44);
             BZ_ITER(45); BZ_ITER(46); BZ_ITER(47); BZ_ITER(48); BZ_ITER(49);
+            }
 
 #           undef BZ_ITER
 
@@ -397,6 +398,7 @@ void sendMTFValues ( EState* s )
          } else {
 	    /*--- slow version which correctly handles all situations ---*/
             for (t = 0; t < nGroups; t++) {
+               cost[t] = 0;
                for (i = gs; i <= ge; i++)
                   cost[t] += s->len[t][mtfv[i]];
             }
@@ -417,11 +419,11 @@ void sendMTFValues ( EState* s )
          /*-- 
             Increment the symbol frequencies for the selected table.
           --*/
-         if (nGroups == 6 && 50 == ge-gs+1) {
-            /*--- fast track the common case ---*/
+#           define BZ_ITUR(nn) \
+            case 50 - (nn): \
+               s->rfreq[bt][ mtfv[ge - (49 - (nn))] ]++
 
-#           define BZ_ITUR(nn) s->rfreq[bt][ mtfv[gs+(nn)] ]++
-
+            switch (ge + 1 - gs)  {
             BZ_ITUR(0);  BZ_ITUR(1);  BZ_ITUR(2);  BZ_ITUR(3);  BZ_ITUR(4);
             BZ_ITUR(5);  BZ_ITUR(6);  BZ_ITUR(7);  BZ_ITUR(8);  BZ_ITUR(9);
             BZ_ITUR(10); BZ_ITUR(11); BZ_ITUR(12); BZ_ITUR(13); BZ_ITUR(14);
@@ -432,14 +434,9 @@ void sendMTFValues ( EState* s )
             BZ_ITUR(35); BZ_ITUR(36); BZ_ITUR(37); BZ_ITUR(38); BZ_ITUR(39);
             BZ_ITUR(40); BZ_ITUR(41); BZ_ITUR(42); BZ_ITUR(43); BZ_ITUR(44);
             BZ_ITUR(45); BZ_ITUR(46); BZ_ITUR(47); BZ_ITUR(48); BZ_ITUR(49);
+            }
 
 #           undef BZ_ITUR
-
-         } else {
-	    /*--- slow version which correctly handles all situations ---*/
-            for (i = gs; i <= ge; i++)
-               s->rfreq[bt][ mtfv[i] ]++;
-         }
       }
       if (s->verbosity >= 3) {
          VPrintf2 ( "      pass %d: size is %d, grp uses are ", 
@@ -566,20 +563,19 @@ void sendMTFValues ( EState* s )
       if (ge >= s->nMTF) ge = s->nMTF-1;
       AssertH ( s->selector[selCtr] < nGroups, 3006 );
 
-      if (nGroups == 6 && 50 == ge-gs+1) {
-            /*--- fast track the common case ---*/
-            UInt16 mtfv_i;
+      {
             UChar* s_len_sel_selCtr 
                = &(s->len[s->selector[selCtr]][0]);
             Int32* s_code_sel_selCtr
                = &(s->code[s->selector[selCtr]][0]);
 
 #           define BZ_ITAH(nn)                      \
-               mtfv_i = mtfv[gs+(nn)];              \
+         case 50 - (nn):                            \
                bsW ( s,                             \
-                     s_len_sel_selCtr[mtfv_i],      \
-                     s_code_sel_selCtr[mtfv_i] )
+                     s_len_sel_selCtr[mtfv[ge - (49 - (nn))]], \
+                     s_code_sel_selCtr[mtfv[ge - (49 - (nn))]] )
 
+         switch (ge + 1 - gs)  {
             BZ_ITAH(0);  BZ_ITAH(1);  BZ_ITAH(2);  BZ_ITAH(3);  BZ_ITAH(4);
             BZ_ITAH(5);  BZ_ITAH(6);  BZ_ITAH(7);  BZ_ITAH(8);  BZ_ITAH(9);
             BZ_ITAH(10); BZ_ITAH(11); BZ_ITAH(12); BZ_ITAH(13); BZ_ITAH(14);
@@ -590,16 +586,9 @@ void sendMTFValues ( EState* s )
             BZ_ITAH(35); BZ_ITAH(36); BZ_ITAH(37); BZ_ITAH(38); BZ_ITAH(39);
             BZ_ITAH(40); BZ_ITAH(41); BZ_ITAH(42); BZ_ITAH(43); BZ_ITAH(44);
             BZ_ITAH(45); BZ_ITAH(46); BZ_ITAH(47); BZ_ITAH(48); BZ_ITAH(49);
+          }
 
 #           undef BZ_ITAH
-
-      } else {
-	 /*--- slow version which correctly handles all situations ---*/
-         for (i = gs; i <= ge; i++) {
-            bsW ( s, 
-                  s->len  [s->selector[selCtr]] [mtfv[i]],
-                  s->code [s->selector[selCtr]] [mtfv[i]] );
-         }
       }
 
 
