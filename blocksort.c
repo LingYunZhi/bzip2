@@ -260,9 +260,14 @@ void fallbackSort ( UInt32* fmap,
    --*/
 
    /*-- set sentinel bits for block-end detection --*/
-   for (i = 0; i < 32; i++) { 
-      SET_BH(nblock + 2*i);
-      CLEAR_BH(nblock + 2*i + 1);
+   if (UNALIGNED_BH(nblock)) {
+      bhtab[(nblock >> 5) + 0] &= ((1U << (nblock & 31)) - 1);
+      bhtab[(nblock >> 5) + 0] |= 0x55555555 << (nblock & 31);
+      bhtab[(nblock >> 5) + 1] = 0x55555555 << (nblock & 1);
+      bhtab[(nblock >> 5) + 2] = 0x55555555 >> (32 - (nblock & 31));
+   } else {
+      bhtab[(nblock >> 5) + 0] = 0x55555555;
+      bhtab[(nblock >> 5) + 1] = 0x55555555;
    }
 
    /*-- the log(N) loop --*/
