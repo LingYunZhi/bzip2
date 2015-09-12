@@ -169,10 +169,22 @@ void generateMTFValues ( EState* s )
 
    memset(s->mtfFreq, 0, sizeof(s->mtfFreq[0]) * (1 + EOB));
 
+   {
+      const unsigned long le = 1;
+      unsigned long curr;
+
+      if (*(unsigned char *)&le)
+         curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
+      else
+         curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
+      for (i = 0; i < s->nInUse; i += sizeof(long)) {
+         *(unsigned long*)(yy + i) = curr;
+         curr += sizeof(long) * (~0UL / 0xff);
+      }
+   }
+
    wr = 0;
    zPend = 0;
-   for (i = 0; i < s->nInUse; i++) yy[i] = (UChar) i;
-
    for (i = 0; i < s->nblock; i++) {
       UChar ll_i;
       AssertD ( wr <= i, "generateMTFValues(1)" );
