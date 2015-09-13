@@ -370,13 +370,13 @@ void sendMTFValues ( EState* s )
             cost01 = cost23 = cost45 = 0;
 
 #           define BZ_ITER(nn)                \
-            case 50 - (nn):                   \
+            case 49 - (nn):                   \
                icv = mtfv[ge - (49 - (nn))];  \
                cost01 += s->len_pack[icv][0]; \
                cost23 += s->len_pack[icv][1]; \
                cost45 += s->len_pack[icv][2]; \
 
-            switch (ge + 1 - gs)  {
+            switch (ge - gs)  {
             BZ_ITER(0);  BZ_ITER(1);  BZ_ITER(2);  BZ_ITER(3);  BZ_ITER(4);
             BZ_ITER(5);  BZ_ITER(6);  BZ_ITER(7);  BZ_ITER(8);  BZ_ITER(9);
             BZ_ITER(10); BZ_ITER(11); BZ_ITER(12); BZ_ITER(13); BZ_ITER(14);
@@ -420,10 +420,10 @@ void sendMTFValues ( EState* s )
             Increment the symbol frequencies for the selected table.
           --*/
 #           define BZ_ITUR(nn) \
-            case 50 - (nn): \
+            case 49 - (nn): \
                s->rfreq[bt][ mtfv[ge - (49 - (nn))] ]++
 
-            switch (ge + 1 - gs)  {
+            switch (ge - gs)  {
             BZ_ITUR(0);  BZ_ITUR(1);  BZ_ITUR(2);  BZ_ITUR(3);  BZ_ITUR(4);
             BZ_ITUR(5);  BZ_ITUR(6);  BZ_ITUR(7);  BZ_ITUR(8);  BZ_ITUR(9);
             BZ_ITUR(10); BZ_ITUR(11); BZ_ITUR(12); BZ_ITUR(13); BZ_ITUR(14);
@@ -570,12 +570,12 @@ void sendMTFValues ( EState* s )
                = &(s->code[s->selector[selCtr]][0]);
 
 #           define BZ_ITAH(nn)                      \
-         case 50 - (nn):                            \
+         case 49 - (nn):                            \
                bsW ( s,                             \
                      s_len_sel_selCtr[mtfv[ge - (49 - (nn))]], \
                      s_code_sel_selCtr[mtfv[ge - (49 - (nn))]] )
 
-         switch (ge + 1 - gs)  {
+         switch (ge - gs)  {
             BZ_ITAH(0);  BZ_ITAH(1);  BZ_ITAH(2);  BZ_ITAH(3);  BZ_ITAH(4);
             BZ_ITAH(5);  BZ_ITAH(6);  BZ_ITAH(7);  BZ_ITAH(8);  BZ_ITAH(9);
             BZ_ITAH(10); BZ_ITAH(11); BZ_ITAH(12); BZ_ITAH(13); BZ_ITAH(14);
