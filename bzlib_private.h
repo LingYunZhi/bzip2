@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h> /* ULONG_MAX */
 #endif
 
 #include "bzlib.h"
@@ -45,6 +46,7 @@ typedef int             Int32;
 typedef unsigned int    UInt32;
 typedef short           Int16;
 typedef unsigned short  UInt16;
+typedef unsigned long   ULong;
 
 #define True  ((Bool)1)
 #define False ((Bool)0)
@@ -260,7 +262,7 @@ typedef
       Int32    code    [BZ_N_GROUPS][BZ_MAX_ALPHA_SIZE];
       Int32    rfreq   [BZ_N_GROUPS][BZ_MAX_ALPHA_SIZE];
       /* second dimension: only 3 needed; 4 makes index calculations faster */
-      UInt32   len_pack[BZ_MAX_ALPHA_SIZE][4];
+      ULong    len_pack[BZ_MAX_ALPHA_SIZE][ULONG_MAX == 4294967295UL ? 4 : 2];
 
    }
    EState;

@@ -257,7 +257,7 @@ void generateMTFValues ( EState* s )
 static
 void sendMTFValues ( EState* s )
 {
-   Int32 v, t, i, j, gs, ge, totc, bt, bc, iter;
+   Int32 v, t, i, j, gs, ge, iter;
    Int32 nSelectors, alphaSize, minLen, maxLen, selCtr;
    Int32 nGroups, nBytes;
 
@@ -270,10 +270,6 @@ void sendMTFValues ( EState* s )
    are also globals only used in this proc.
    Made global to keep stack frame size small.
    --*/
-
-
-   UInt16 cost[BZ_N_GROUPS];
-   Int32  fave[BZ_N_GROUPS];
 
    UInt16* mtfv = s->mtfv;
 
@@ -311,7 +307,7 @@ void sendMTFValues ( EState* s )
 
          if (ge > gs 
              && nPart != nGroups && nPart != 1 
-             && ((nGroups-nPart) % 2 == 1)) {
+             && ((nGroups - nPart) & 1)) {
             aFreq -= s->mtfFreq[ge];
             ge--;
          }
@@ -334,76 +330,244 @@ void sendMTFValues ( EState* s )
       Iterate up to BZ_N_ITERS times to improve the tables.
    ---*/
    for (iter = 0; iter < BZ_N_ITERS; iter++) {
+      UInt16 cost[BZ_N_GROUPS];
+      Int32  fave[BZ_N_GROUPS] = { 0 };
+      Int32 totc = 0, bt, bc;
 
       for (t = 0; t < nGroups; t++) {
-         fave[t] = 0;
          memset(s->rfreq[t], 0, sizeof(s->rfreq[t][0]) * alphaSize);
+#if ULONG_MAX == 4294967295UL
+         if (t & 1) {
+            for (v = 0; v < alphaSize; v++)
+               s->len_pack[v][t / 2] = ((ULong)s->len[t][v] << 16) | s->len[t - 1][v];
+         }
       }
-
-      /*---
-        Set up an auxiliary length table which is used to fast-track
-	the common case (nGroups == 6). 
-      ---*/
-      if (nGroups == 6) {
+#else
+         if (t == 3) {
+            for (v = 0; v < alphaSize; v++)
+               s->len_pack[v][0] = ((ULong)s->len[3][v] << 48) | ((ULong)s->len[2][v] << 32) | ((ULong)s->len[1][v] << 16) | s->len[0][v];
+         }
+      }
+      if ((t & 3) >= 2) {
          for (v = 0; v < alphaSize; v++) {
-            s->len_pack[v][0] = (s->len[1][v] << 16) | s->len[0][v];
-            s->len_pack[v][1] = (s->len[3][v] << 16) | s->len[2][v];
-            s->len_pack[v][2] = (s->len[5][v] << 16) | s->len[4][v];
-	      }
+            ULong tmp = ((ULong)s->len[t - 1][v] << 16) | s->len[t - 2][v];
+            if ((t & 3) == 3)
+               tmp = (tmp << 16) | s->len[t - 3][v];
+            s->len_pack[v][t / 4] = tmp;
+         }
       }
+#endif
 
       nSelectors = 0;
-      totc = 0;
       for (gs = 0; gs < s->nMTF; gs = ge + 1) {
+#if ULONG_MAX == 4294967295UL
+         register unsigned long cost01, cost23, cost45;
+#else
+         register unsigned long cost0123, cost45;
+#endif
+         register UInt16 icv;
+
          /*--- Set group start & end marks. --*/
          ge = gs + BZ_G_SIZE - 1; 
          if (ge >= s->nMTF) ge = s->nMTF-1;
+
+#define BZ_ITER_GROUP() \
+            switch (ge - gs)  { \
+            BZ_ITER(0);  BZ_ITER(1);  BZ_ITER(2);  BZ_ITER(3);  BZ_ITER(4); \
+            BZ_ITER(5);  BZ_ITER(6);  BZ_ITER(7);  BZ_ITER(8);  BZ_ITER(9); \
+            BZ_ITER(10); BZ_ITER(11); BZ_ITER(12); BZ_ITER(13); BZ_ITER(14); \
+            BZ_ITER(15); BZ_ITER(16); BZ_ITER(17); BZ_ITER(18); BZ_ITER(19); \
+            BZ_ITER(20); BZ_ITER(21); BZ_ITER(22); BZ_ITER(23); BZ_ITER(24); \
+            BZ_ITER(25); BZ_ITER(26); BZ_ITER(27); BZ_ITER(28); BZ_ITER(29); \
+            BZ_ITER(30); BZ_ITER(31); BZ_ITER(32); BZ_ITER(33); BZ_ITER(34); \
+            BZ_ITER(35); BZ_ITER(36); BZ_ITER(37); BZ_ITER(38); BZ_ITER(39); \
+            BZ_ITER(40); BZ_ITER(41); BZ_ITER(42); BZ_ITER(43); BZ_ITER(44); \
+            BZ_ITER(45); BZ_ITER(46); BZ_ITER(47); BZ_ITER(48); BZ_ITER(49); \
+            }
 
          /*-- 
             Calculate the cost of this group as coded
             by each of the coding tables.
          --*/
-         if (nGroups == 6) {
-            /*--- fast track the common case ---*/
-            register UInt32 cost01, cost23, cost45;
-            register UInt16 icv;
-            cost01 = cost23 = cost45 = 0;
+         switch (nGroups) {
 
-#           define BZ_ITER(nn)                \
+#if ULONG_MAX == 4294967295UL
+
+#define BZ_ITER(nn)                           \
+            case 49 - (nn):                   \
+               icv = mtfv[ge - (49 - (nn))];  \
+               cost01 += s->len_pack[icv][0];
+
+         case 2:
+            cost01 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost01 & 0xffff;
+            cost[1] = cost01 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                           \
+            case 49 - (nn):                   \
+               icv = mtfv[ge - (49 - (nn))];  \
+               cost01 += s->len_pack[icv][0]; \
+               cost[2] += s->len[2][icv];
+
+         case 3:
+            cost01 = 0;
+            cost[2] = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost01 & 0xffff;
+            cost[1] = cost01 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                           \
+            case 49 - (nn):                   \
+               icv = mtfv[ge - (49 - (nn))];  \
+               cost01 += s->len_pack[icv][0]; \
+               cost23 += s->len_pack[icv][1];
+
+         case 4:
+            cost01 = cost23 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost01 & 0xffff;
+            cost[1] = cost01 >> 16;
+            cost[2] = cost23 & 0xffff;
+            cost[3] = cost23 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                           \
             case 49 - (nn):                   \
                icv = mtfv[ge - (49 - (nn))];  \
                cost01 += s->len_pack[icv][0]; \
                cost23 += s->len_pack[icv][1]; \
-               cost45 += s->len_pack[icv][2]; \
+               cost[4] += s->len[4][icv];
 
-            switch (ge - gs)  {
-            BZ_ITER(0);  BZ_ITER(1);  BZ_ITER(2);  BZ_ITER(3);  BZ_ITER(4);
-            BZ_ITER(5);  BZ_ITER(6);  BZ_ITER(7);  BZ_ITER(8);  BZ_ITER(9);
-            BZ_ITER(10); BZ_ITER(11); BZ_ITER(12); BZ_ITER(13); BZ_ITER(14);
-            BZ_ITER(15); BZ_ITER(16); BZ_ITER(17); BZ_ITER(18); BZ_ITER(19);
-            BZ_ITER(20); BZ_ITER(21); BZ_ITER(22); BZ_ITER(23); BZ_ITER(24);
-            BZ_ITER(25); BZ_ITER(26); BZ_ITER(27); BZ_ITER(28); BZ_ITER(29);
-            BZ_ITER(30); BZ_ITER(31); BZ_ITER(32); BZ_ITER(33); BZ_ITER(34);
-            BZ_ITER(35); BZ_ITER(36); BZ_ITER(37); BZ_ITER(38); BZ_ITER(39);
-            BZ_ITER(40); BZ_ITER(41); BZ_ITER(42); BZ_ITER(43); BZ_ITER(44);
-            BZ_ITER(45); BZ_ITER(46); BZ_ITER(47); BZ_ITER(48); BZ_ITER(49);
-            }
+         case 5:
+            cost01 = cost23 = 0;
+            cost[4] = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost01 & 0xffff;
+            cost[1] = cost01 >> 16;
+            cost[2] = cost23 & 0xffff;
+            cost[3] = cost23 >> 16;
+            break;
 
-#           undef BZ_ITER
+#undef BZ_ITER
 
-            cost[0] = cost01 & 0xffff; cost[1] = cost01 >> 16;
-            cost[2] = cost23 & 0xffff; cost[3] = cost23 >> 16;
-            cost[4] = cost45 & 0xffff; cost[5] = cost45 >> 16;
+#define BZ_ITER(nn)                           \
+            case 49 - (nn):                   \
+               icv = mtfv[ge - (49 - (nn))];  \
+               cost01 += s->len_pack[icv][0]; \
+               cost23 += s->len_pack[icv][1]; \
+               cost45 += s->len_pack[icv][2];
 
-         } else {
-	    /*--- slow version which correctly handles all situations ---*/
-            for (t = 0; t < nGroups; t++) {
-               cost[t] = 0;
-               for (i = gs; i <= ge; i++)
-                  cost[t] += s->len[t][mtfv[i]];
-            }
+         case 6:
+            cost01 = cost23 = cost45 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost01 & 0xffff;
+            cost[1] = cost01 >> 16;
+            cost[2] = cost23 & 0xffff;
+            cost[3] = cost23 >> 16;
+            cost[4] = cost45 & 0xffff;
+            cost[5] = cost45 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#else
+
+#define BZ_ITER(nn)                            \
+            case 49 - (nn):                    \
+               icv = mtfv[ge - (49 - (nn))];   \
+               cost0123 += s->len_pack[icv][0];
+
+         case 2:
+            cost0123 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost0123 & 0xffff;
+            cost[1] = cost0123 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                            \
+            case 49 - (nn):                    \
+               icv = mtfv[ge - (49 - (nn))];   \
+               cost0123 += s->len_pack[icv][0];
+
+         case 3:
+            cost0123 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost0123 & 0xffff;
+            cost[1] = (cost0123 >> 16) & 0xffff;
+            cost[2] = cost0123 >> 32;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                            \
+            case 49 - (nn):                    \
+               icv = mtfv[ge - (49 - (nn))];   \
+               cost0123 += s->len_pack[icv][0];
+
+         case 4:
+            cost0123 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost0123 & 0xffff;
+            cost[1] = (cost0123 >> 16) & 0xffff;
+            cost[2] = (cost0123 >> 32) & 0xffff;
+            cost[3] = cost0123 >> 48;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                             \
+            case 49 - (nn):                     \
+               icv = mtfv[ge - (49 - (nn))];    \
+               cost0123 += s->len_pack[icv][0]; \
+               cost[4] += s->len[4][icv];
+
+         case 5:
+            cost0123 = 0;
+            cost[4] = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost0123 & 0xffff;
+            cost[1] = (cost0123 >> 16) & 0xffff;
+            cost[2] = (cost0123 >> 32) & 0xffff;
+            cost[3] = cost0123 >> 48;
+            break;
+
+#undef BZ_ITER
+
+#define BZ_ITER(nn)                             \
+            case 49 - (nn):                     \
+               icv = mtfv[ge - (49 - (nn))];    \
+               cost0123 += s->len_pack[icv][0]; \
+               cost45   += s->len_pack[icv][1];
+
+         case 6:
+            cost0123 = cost45 = 0;
+            BZ_ITER_GROUP()
+            cost[0] = cost0123 & 0xffff;
+            cost[1] = (cost0123 >> 16) & 0xffff;
+            cost[2] = (cost0123 >> 32) & 0xffff;
+            cost[3] = cost0123 >> 48;
+            cost[4] = cost45 & 0xffff;
+            cost[5] = cost45 >> 16;
+            break;
+
+#undef BZ_ITER
+
+#endif
          }
- 
+
+#undef BZ_ITER_GROUP
+
          /*-- 
             Find the coding table which is best for this group,
             and record its identity in the selector table.
@@ -419,7 +583,7 @@ void sendMTFValues ( EState* s )
          /*-- 
             Increment the symbol frequencies for the selected table.
           --*/
-#           define BZ_ITUR(nn) \
+#define BZ_ITUR(nn) \
             case 49 - (nn): \
                s->rfreq[bt][ mtfv[ge - (49 - (nn))] ]++
 
@@ -436,7 +600,7 @@ void sendMTFValues ( EState* s )
             BZ_ITUR(45); BZ_ITUR(46); BZ_ITUR(47); BZ_ITUR(48); BZ_ITUR(49);
             }
 
-#           undef BZ_ITUR
+#undef BZ_ITUR
       }
       if (s->verbosity >= 3) {
          VPrintf2 ( "      pass %d: size is %d, grp uses are ", 
@@ -568,12 +732,12 @@ void sendMTFValues ( EState* s )
                = &(s->len[s->selector[selCtr]][0]);
             Int32* s_code_sel_selCtr
                = &(s->code[s->selector[selCtr]][0]);
+            UInt16 icv;
 
-#           define BZ_ITAH(nn)                      \
-         case 49 - (nn):                            \
-               bsW ( s,                             \
-                     s_len_sel_selCtr[mtfv[ge - (49 - (nn))]], \
-                     s_code_sel_selCtr[mtfv[ge - (49 - (nn))]] )
+#define BZ_ITAH(nn)                              \
+         case 49 - (nn):                         \
+            icv = mtfv[ge - (49 - (nn))];        \
+            bsW ( s, s_len_sel_selCtr[icv], s_code_sel_selCtr[icv] )
 
          switch (ge - gs)  {
             BZ_ITAH(0);  BZ_ITAH(1);  BZ_ITAH(2);  BZ_ITAH(3);  BZ_ITAH(4);
@@ -588,9 +752,8 @@ void sendMTFValues ( EState* s )
             BZ_ITAH(45); BZ_ITAH(46); BZ_ITAH(47); BZ_ITAH(48); BZ_ITAH(49);
           }
 
-#           undef BZ_ITAH
+#undef BZ_ITAH
       }
-
 
       selCtr++;
    }
