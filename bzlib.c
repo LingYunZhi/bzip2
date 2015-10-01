@@ -510,7 +510,7 @@ int BZ_API(BZ2_bzDecompressInit)
    s->strm                  = strm;
    strm->state              = s;
    s->state                 = BZ_X_MAGIC_1;
-   s->bsLive                = 0;
+   s->bsLive                = 32;
    s->bsBuff                = 0;
    s->calculatedCombinedCRC = 0;
    strm->total_in_lo32      = 0;

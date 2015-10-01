@@ -30,11 +30,11 @@
 #define NEED_BITS(lll,nnn)                        \
    case lll: s->state = lll;                      \
    if (__builtin_constant_p(nnn) && nnn <= 8) {   \
-     if (s->bsLive < nnn) {                       \
+     if (s->bsLive > 32 - nnn) {                  \
         if (s->strm->avail_in == 0) RETURN(BZ_OK);\
+        s->bsLive -= 8;                           \
         s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                         << (24 - s->bsLive);     \
-        s->bsLive += 8;                           \
+                         << s->bsLive;            \
         s->strm->next_in++;                       \
         s->strm->avail_in--;                      \
         s->strm->total_in_lo32++;                 \
@@ -42,11 +42,11 @@
            s->strm->total_in_hi32++;              \
      }                                            \
    } else {                                       \
-     while (s->bsLive < nnn) {                    \
+     while (s->bsLive > 32 - nnn) {               \
         if (s->strm->avail_in == 0) RETURN(BZ_OK);\
+        s->bsLive -= 8;                           \
         s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                         << (24 - s->bsLive);     \
-        s->bsLive += 8;                           \
+                         << s->bsLive;            \
         s->strm->next_in++;                       \
         s->strm->avail_in--;                      \
         s->strm->total_in_lo32++;                 \
@@ -57,7 +57,7 @@
 
 #define DROP_BITS(nnn)                            \
    s->bsBuff <<= nnn;                             \
-   s->bsLive -= nnn;
+   s->bsLive += nnn;
 
 #define GET_BITS(lll,vvv,nnn)                     \
    NEED_BITS(lll,nnn);                            \
