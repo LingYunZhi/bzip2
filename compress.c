@@ -37,7 +37,7 @@
 /*---------------------------------------------------*/
 void BZ2_bsInitWrite ( EState* s )
 {
-   s->bsLive = 0;
+   s->bsLive = BITS_PER_LONG;
    s->bsBuff = 0;
 }
 
@@ -46,27 +46,11 @@ void BZ2_bsInitWrite ( EState* s )
 static
 void bsFinishWrite ( EState* s )
 {
-   if (s->bsLive > 0) {
-      s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
-      s->numZ++;
-      s->bsBuff = 0;
-      s->bsLive = 0;
-   }
-}
-
-
-/*---------------------------------------------------*/
-static
-__inline__
-void bsW ( EState* s, Int32 n, UInt32 v )
-{
-   s->bsLive += n;
-   s->bsBuff |= (v << (32 - s->bsLive));
-   while (s->bsLive >= 8) {
-      s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
+   while (s->bsLive < BITS_PER_LONG) {
+      s->zbits[s->numZ] = (UChar)(s->bsBuff >> (BITS_PER_LONG - 8));
       s->numZ++;
       s->bsBuff <<= 8;
-      s->bsLive -= 8;
+      s->bsLive += 8;
    }
 }
 
@@ -74,16 +58,39 @@ void bsW ( EState* s, Int32 n, UInt32 v )
 /*---------------------------------------------------*/
 static
 __inline__
-void bsW1 ( EState* s, UInt32 v )
+void bsW ( EState* s, Int32 n, ULong v )
 {
-   s->bsLive++;
-   if (v)
-      s->bsBuff |= (v << (32 - s->bsLive));
-   if (s->bsLive == 8) {
-      s->zbits[s->numZ] = (UChar)(s->bsBuff >> 24);
-      s->numZ++;
+   if (n < s->bsLive) {
+      s->bsLive -= n;
+      s->bsBuff |= (v << s->bsLive);
+   } else {
+      ULong tmp = s->bsBuff | (v >> (n - s->bsLive));
+      ((una_ulong*)(s->zbits + s->numZ))->x = BZ_LITTLE_ENDIAN() ? bz_bswap_long(tmp) : tmp;
+      s->numZ += sizeof(long);
+      n = n - s->bsLive;
+      s->bsLive = BITS_PER_LONG - n;
+      if (n)
+         s->bsBuff = (v << s->bsLive);
+      else
+         s->bsBuff = 0;
+   }
+}
+
+
+/*---------------------------------------------------*/
+static
+__inline__
+void bsW1 ( EState* s, ULong v )
+{
+   if (s->bsLive > 1) {
+      s->bsLive--;
+      s->bsBuff |= (v << s->bsLive);
+   } else {
+      ULong tmp = s->bsBuff | v;
+      ((una_ulong*)(s->zbits + s->numZ))->x = BZ_LITTLE_ENDIAN() ? bz_bswap_long(tmp) : tmp;
+      s->numZ += sizeof(long);
+      s->bsLive = BITS_PER_LONG;
       s->bsBuff = 0;
-      s->bsLive = 0;
    }
 }
 
@@ -92,8 +99,7 @@ void bsW1 ( EState* s, UInt32 v )
 static
 void bsPutUInt32 ( EState* s, UInt32 u )
 {
-   bsW ( s, 16, (u >> 16) & 0xffffL );
-   bsW ( s, 16,  u        & 0xffffL );
+   bsW ( s, 32, (ULong)u );
 }
 
 
@@ -101,7 +107,7 @@ void bsPutUInt32 ( EState* s, UInt32 u )
 static
 void bsPutUChar ( EState* s, UChar c )
 {
-   bsW( s, 8, (UInt32)c );
+   bsW( s, 8, (ULong)c );
 }
 
 
@@ -170,10 +176,9 @@ void generateMTFValues ( EState* s )
    memset(s->mtfFreq, 0, sizeof(s->mtfFreq[0]) * (1 + EOB));
 
    {
-      const unsigned long le = 1;
       unsigned long curr;
 
-      if (*(unsigned char *)&le)
+      if (BZ_LITTLE_ENDIAN())
          curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
       else
          curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;

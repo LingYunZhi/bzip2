@@ -48,6 +48,25 @@ typedef short           Int16;
 typedef unsigned short  UInt16;
 typedef unsigned long   ULong;
 
+typedef struct { UInt16 x; } __attribute__((packed)) una_u16;
+typedef struct { UInt32 x; } __attribute__((packed)) una_u32;
+typedef struct { ULong x; } __attribute__((packed)) una_ulong;
+
+#define bz_bswap_16(x)   __builtin_bswap16(x)
+#define bz_bswap_32(x)   __builtin_bswap32(x)
+#define bz_bswap_64(x)   __builtin_bswap64(x)
+#define bz_bswap_long(x) (sizeof(long) == 8 ? bz_bswap_64(x) : bz_bswap_32(x))
+
+#ifndef BITS_PER_LONG
+#define BITS_PER_LONG (sizeof(long) * 8)
+#endif
+
+static __inline__ int BZ_LITTLE_ENDIAN(void)
+{
+    const union { UInt32 i; UChar c[4]; } one = { 1 };
+    return one.c[0];
+}
+
 #define True  ((Bool)1)
 #define False ((Bool)0)
 
@@ -240,7 +259,7 @@ typedef
       UChar    unseqToSeq[256];
 
       /* the buffer for bit stream creation */
-      UInt32   bsBuff;
+      ULong    bsBuff;
       Int32    bsLive;
 
       /* block and combined CRCs */
