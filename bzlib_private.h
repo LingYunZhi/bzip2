@@ -130,7 +130,8 @@ extern void bz_internal_error ( int errcode );
 #define BZ_HDR_Z 0x5a   /* 'Z' */
 #define BZ_HDR_h 0x68   /* 'h' */
 #define BZ_HDR_0 0x30   /* '0' */
-  
+#define BZ_HDR   0x425a6830
+
 /*-- Constants for the back end. --*/
 
 #define BZ_MAX_ALPHA_SIZE 258

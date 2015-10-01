@@ -96,22 +96,6 @@ void bsW1 ( EState* s, ULong v )
 
 
 /*---------------------------------------------------*/
-static
-void bsPutUInt32 ( EState* s, UInt32 u )
-{
-   bsW ( s, 32, (ULong)u );
-}
-
-
-/*---------------------------------------------------*/
-static
-void bsPutUChar ( EState* s, UChar c )
-{
-   bsW( s, 8, (ULong)c );
-}
-
-
-/*---------------------------------------------------*/
 /*--- The back end proper                         ---*/
 /*---------------------------------------------------*/
 
@@ -792,20 +776,16 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
    /*-- If this is the first block, create the stream header. --*/
    if (s->blockNo == 1) {
       BZ2_bsInitWrite ( s );
-      bsPutUChar ( s, BZ_HDR_B );
-      bsPutUChar ( s, BZ_HDR_Z );
-      bsPutUChar ( s, BZ_HDR_h );
-      bsPutUChar ( s, (UChar)(BZ_HDR_0 + s->blockSize100k) );
+      bsW ( s, 32, BZ_HDR + s->blockSize100k );
    }
 
    if (s->nblock > 0) {
 
-      bsPutUChar ( s, 0x31 ); bsPutUChar ( s, 0x41 );
-      bsPutUChar ( s, 0x59 ); bsPutUChar ( s, 0x26 );
-      bsPutUChar ( s, 0x53 ); bsPutUChar ( s, 0x59 );
+      bsW ( s, 32, 0x31415926 );
+      bsW ( s, 16, 0x5359 );
 
       /*-- Now the block's CRC, so it is in a known place. --*/
-      bsPutUInt32 ( s, s->blockCRC );
+      bsW ( s, 32, s->blockCRC );
 
       /*-- 
          Now a single bit indicating (non-)randomisation. 
@@ -827,10 +807,9 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
    /*-- If this is the last block, add the stream trailer. --*/
    if (is_last_block) {
 
-      bsPutUChar ( s, 0x17 ); bsPutUChar ( s, 0x72 );
-      bsPutUChar ( s, 0x45 ); bsPutUChar ( s, 0x38 );
-      bsPutUChar ( s, 0x50 ); bsPutUChar ( s, 0x90 );
-      bsPutUInt32 ( s, s->combinedCRC );
+      bsW ( s, 32, 0x17724538 );
+      bsW ( s, 16, 0x5090 );
+      bsW ( s, 32, s->combinedCRC );
       if (s->verbosity >= 2)
          VPrintf1( "    final combined CRC = 0x%08x\n   ", s->combinedCRC );
       bsFinishWrite ( s );
