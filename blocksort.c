@@ -384,94 +384,56 @@ Bool mainGtU ( UInt32  i1,
                UInt32  nblock,
                Int32*  budget )
 {
-   Int32  k;
-   UChar  c1, c2;
-   UInt16 s1, s2;
+   Int32 k;
+   ULong c1, c2;
+   ULong s1, s2;
+   ULong chk, mask;
 
    AssertD ( i1 != i2, "mainGtU" );
 
-   /* 1 */
-   c1 = block[i1]; c2 = block[i2];
-   if (c1 != c2) return (c1 > c2);
-   /* 2 */
-   c1 = block[i1+1]; c2 = block[i2+1];
-   if (c1 != c2) return (c1 > c2);
-   /* 3 */
-   c1 = block[i1+2]; c2 = block[i2+2];
-   if (c1 != c2) return (c1 > c2);
-   /* 4 */
-   c1 = block[i1+3]; c2 = block[i2+3];
-   if (c1 != c2) return (c1 > c2);
-   /* 5 */
-   c1 = block[i1+4]; c2 = block[i2+4];
-   if (c1 != c2) return (c1 > c2);
-   /* 6 */
-   c1 = block[i1+5]; c2 = block[i2+5];
-   if (c1 != c2) return (c1 > c2);
-   /* 7 */
-   c1 = block[i1+6]; c2 = block[i2+6];
-   if (c1 != c2) return (c1 > c2);
-   /* 8 */
-   c1 = block[i1+7]; c2 = block[i2+7];
-   if (c1 != c2) return (c1 > c2);
-   /* 9 */
-   c1 = block[i1+8]; c2 = block[i2+8];
-   if (c1 != c2) return (c1 > c2);
-   /* 10 */
-   c1 = block[i1+9]; c2 = block[i2+9];
-   if (c1 != c2) return (c1 > c2);
-   /* 11 */
-   c1 = block[i1+10]; c2 = block[i2+10];
-   if (c1 != c2) return (c1 > c2);
-   /* 12 */
-   c1 = block[i1+11]; c2 = block[i2+11];
-   if (c1 != c2) return (c1 > c2);
+#define NOT_EQU(x, y) (BZ_LITTLE_ENDIAN() ? (chk = x ^ y) : (x != y))
+
+   c1 = ((una_ulong*)(block + i1))->x;
+   c2 = ((una_ulong*)(block + i2))->x;
+   if (NOT_EQU(c1, c2)) goto out1;
+   if (sizeof(long) == 8) {
+      c1 = ((una_u32*)(block + i1 + 8))->x;
+      c2 = ((una_u32*)(block + i2 + 8))->x;
+      if (NOT_EQU(c1, c2)) goto out1;
+   } else {
+      c1 = ((una_ulong*)(block + i1 + 4))->x;
+      c2 = ((una_ulong*)(block + i2 + 4))->x;
+      if (NOT_EQU(c1, c2)) goto out1;
+      c1 = ((una_ulong*)(block + i1 + 8))->x;
+      c2 = ((una_ulong*)(block + i2 + 8))->x;
+      if (NOT_EQU(c1, c2)) goto out1;
+   }
 
    i1 += 12;
    i2 += 12;
    k = nblock + 8;
 
    do {
-      /* 1 */
-      c1 = block[i1]; c2 = block[i2];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1]; s2 = quadrant[i2];
-      if (s1 != s2) return (s1 > s2);
-      /* 2 */
-      c1 = block[i1+1]; c2 = block[i2+1];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+1]; s2 = quadrant[i2+1];
-      if (s1 != s2) return (s1 > s2);
-      /* 3 */
-      c1 = block[i1+2]; c2 = block[i2+2];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+2]; s2 = quadrant[i2+2];
-      if (s1 != s2) return (s1 > s2);
-      /* 4 */
-      c1 = block[i1+3]; c2 = block[i2+3];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+3]; s2 = quadrant[i2+3];
-      if (s1 != s2) return (s1 > s2);
-      /* 5 */
-      c1 = block[i1+4]; c2 = block[i2+4];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+4]; s2 = quadrant[i2+4];
-      if (s1 != s2) return (s1 > s2);
-      /* 6 */
-      c1 = block[i1+5]; c2 = block[i2+5];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+5]; s2 = quadrant[i2+5];
-      if (s1 != s2) return (s1 > s2);
-      /* 7 */
-      c1 = block[i1+6]; c2 = block[i2+6];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+6]; s2 = quadrant[i2+6];
-      if (s1 != s2) return (s1 > s2);
-      /* 8 */
-      c1 = block[i1+7]; c2 = block[i2+7];
-      if (c1 != c2) return (c1 > c2);
-      s1 = quadrant[i1+7]; s2 = quadrant[i2+7];
-      if (s1 != s2) return (s1 > s2);
+      c1 = ((una_ulong*)(block + i1))->x;
+      c2 = ((una_ulong*)(block + i2))->x;
+      if ((chk = c1 ^ c2)) goto out2;
+      s1 = ((una_ulong*)(quadrant + i1))->x;
+      s2 = ((una_ulong*)(quadrant + i2))->x;
+      if (NOT_EQU(s1, s2)) goto out3;
+      s1 = ((una_ulong*)(quadrant + i1 + sizeof(long) / 2))->x;
+      s2 = ((una_ulong*)(quadrant + i2 + sizeof(long) / 2))->x;
+      if (NOT_EQU(s1, s2)) goto out3;
+      if (sizeof(long) == 4) {
+         c1 = ((una_ulong*)(block + i1 + 4))->x;
+         c2 = ((una_ulong*)(block + i2 + 4))->x;
+         if ((chk = c1 ^ c2)) goto out4;
+         s1 = ((una_ulong*)(quadrant + i1 + 4))->x;
+         s2 = ((una_ulong*)(quadrant + i2 + 4))->x;
+         if (NOT_EQU(s1, s2)) goto out3;
+         s1 = ((una_ulong*)(quadrant + i1 + 6))->x;
+         s2 = ((una_ulong*)(quadrant + i2 + 6))->x;
+         if (NOT_EQU(s1, s2)) goto out3;
+      }
 
       i1 += 8;
       if (i1 >= nblock) i1 -= nblock;
@@ -483,6 +445,76 @@ Bool mainGtU ( UInt32  i1,
    } while (k >= 0);
 
    return False;
+
+out1:
+   if (BZ_LITTLE_ENDIAN()) {
+      mask = 0xFFUL << ((__builtin_ffsl(chk) - 1) & (BITS_PER_LONG - 8));
+      c1 &= mask;
+      c2 &= mask;
+   }
+   return (c1 > c2);
+
+out4:
+   if (sizeof(long) == 4) {
+      i1 += 4;
+      i2 += 4;
+   }
+out2:
+   if (BZ_LITTLE_ENDIAN()) {
+      k = (__builtin_ffsl(chk) - 1) / 8;
+      if (k == 0)
+         return ((c1 & 0xFF) > (c2 & 0xFF));
+      mask = 0xFFUL << (k * 8);
+   } else {
+      k = __builtin_clzl(chk) / 8;
+      if (k == 0)
+         return (c1 > c2);
+   }
+   s1 = ((una_ulong*)(quadrant + i1))->x;
+   s2 = ((una_ulong*)(quadrant + i2))->x;
+   if (!(chk = s1 ^ s2)) {
+      if (k < sizeof(long) / 2) {
+         if (BZ_LITTLE_ENDIAN()) {
+            c1 &= mask;
+            c2 &= mask;
+         }
+         return (c1 > c2);
+      }
+      s1 = ((una_ulong*)(quadrant + i1 + sizeof(long) / 2))->x;
+      s2 = ((una_ulong*)(quadrant + i2 + sizeof(long) / 2))->x;
+      if (!(chk = s1 ^ s2)) {
+         if (BZ_LITTLE_ENDIAN()) {
+            c1 &= mask;
+            c2 &= mask;
+         }
+         return (c1 > c2);
+      }
+      k -= sizeof(long) / 2;
+   }
+   if (BZ_LITTLE_ENDIAN()) {
+      Int32 j = (__builtin_ffsl(chk) - 1) / 16;
+      if (k <= j) {
+         c1 &= mask;
+         c2 &= mask;
+         return (c1 > c2);
+      }
+      mask = 0xFFFFUL << (j * 16);
+      s1 &= mask;
+      s2 &= mask;
+   } else {
+      Int32 j = __builtin_clzl(chk) / 16;
+      if (k <= j)
+         return (c1 > c2);
+   }
+   return (s1 > s2);
+
+out3:
+   if (BZ_LITTLE_ENDIAN()) {
+      mask = 0xFFFFUL << ((__builtin_ffsl(chk) - 1) & (BITS_PER_LONG - 16));
+      s1 &= mask;
+      s2 &= mask;
+   }
+   return (s1 > s2);
 }
 
 
@@ -493,7 +525,7 @@ Bool mainGtU ( UInt32  i1,
    because the number of elems to sort is
    usually small, typically <= 20.
 --*/
-static
+static const
 Int32 incs[14] = { 1, 4, 13, 40, 121, 364, 1093, 3280,
                    9841, 29524, 88573, 265720,
                    797161, 2391484 };
