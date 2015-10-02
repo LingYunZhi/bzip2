@@ -408,12 +408,12 @@ int BZ_API(BZ2_bzCompress) ( bz_stream *strm, int action )
 {
    Bool progress;
    EState* s;
+
    if (strm == NULL) return BZ_PARAM_ERROR;
    s = strm->state;
    if (s == NULL) return BZ_PARAM_ERROR;
    if (s->strm != strm) return BZ_PARAM_ERROR;
 
-   preswitch:
    switch (s->mode) {
 
       case BZ_M_IDLE:
@@ -425,16 +425,16 @@ int BZ_API(BZ2_bzCompress) ( bz_stream *strm, int action )
             return progress ? BZ_RUN_OK : BZ_PARAM_ERROR;
          } 
          else
-	 if (action == BZ_FLUSH) {
+	     if (action == BZ_FLUSH) {
             s->avail_in_expect = strm->avail_in;
             s->mode = BZ_M_FLUSHING;
-            goto preswitch;
+            goto flush;
          }
          else
          if (action == BZ_FINISH) {
             s->avail_in_expect = strm->avail_in;
             s->mode = BZ_M_FINISHING;
-            goto preswitch;
+            goto finish;
          }
          else 
             return BZ_PARAM_ERROR;
@@ -443,6 +443,7 @@ int BZ_API(BZ2_bzCompress) ( bz_stream *strm, int action )
          if (action != BZ_FLUSH) return BZ_SEQUENCE_ERROR;
          if (s->avail_in_expect != s->strm->avail_in) 
             return BZ_SEQUENCE_ERROR;
+flush:
          progress = handle_compress ( strm );
          if (s->avail_in_expect > 0 || !isempty_RL(s) ||
              s->state_out_pos < s->numZ) return BZ_FLUSH_OK;
@@ -453,6 +454,7 @@ int BZ_API(BZ2_bzCompress) ( bz_stream *strm, int action )
          if (action != BZ_FINISH) return BZ_SEQUENCE_ERROR;
          if (s->avail_in_expect != s->strm->avail_in) 
             return BZ_SEQUENCE_ERROR;
+finish:
          progress = handle_compress ( strm );
          if (!progress) return BZ_SEQUENCE_ERROR;
          if (s->avail_in_expect > 0 || !isempty_RL(s) ||
@@ -628,7 +630,7 @@ Bool unRLE_obuf_to_output_FAST ( DState* s )
                cs_next_out++;
                cs_avail_out--;
             }
-         }   
+         }
          /* Only caused by corrupt data stream? */
          if (c_nblock_used > s_save_nblockPP)
             return True;
@@ -955,7 +957,7 @@ BZFILE* BZ_API(BZ2_bzWriteOpen)
 
    bzf->strm.avail_in = 0;
    bzf->initialisedOk = True;
-   return bzf;   
+   return bzf;
 }
 
 
