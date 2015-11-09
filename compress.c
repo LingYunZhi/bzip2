@@ -185,8 +185,7 @@ void generateMTFValues ( EState* s )
          zPend++;
       } else {
 
-         if (zPend > 0) {
-            do {
+         while (zPend > 0) {
                zPend--;
                if (zPend & 1) {
                   mtfv[wr] = BZ_RUNB; wr++; 
@@ -195,33 +194,45 @@ void generateMTFValues ( EState* s )
                   mtfv[wr] = BZ_RUNA; wr++; 
                   s->mtfFreq[BZ_RUNA]++; 
                }
-            } while (zPend >>= 1);
+               zPend >>= 1;
          }
          {
-            register UChar  rtmp;
-            register UChar* ryy_j;
-            register UChar  rll_i;
-            rtmp  = yy[1];
-            yy[1] = yy[0];
-            ryy_j = &(yy[1]);
-            rll_i = ll_i;
-            while ( rll_i != rtmp ) {
-               register UChar rtmp2;
-               ryy_j++;
-               rtmp2  = rtmp;
-               rtmp   = *ryy_j;
-               *ryy_j = rtmp2;
-            };
-            yy[0] = rtmp;
-            j = ryy_j - &(yy[0]);
-            mtfv[wr] = j+1; wr++; s->mtfFreq[j+1]++;
+            const unsigned long one_bits = (~0UL / 0xff);
+            const unsigned long low_bits = 0x7fUL * (~0UL / 0xff);
+            register unsigned long pattern = ll_i * (~0UL / 0xff);
+            unsigned long* pl = (unsigned long *)yy;
+            register unsigned long prev = BZ_LITTLE_ENDIAN() ? ll_i : ((unsigned long)ll_i << (sizeof(long) * 8 - 8));
+            register unsigned long curr, tmp;
+            for (;;) {
+               curr = *pl;
+               tmp = curr ^ pattern;
+               if ((tmp - one_bits) & ~(tmp | low_bits))
+                  break;
+               if (BZ_LITTLE_ENDIAN()) {
+                  *pl++ = prev | (curr << 8);
+                  prev = (curr >> (sizeof(long) * 8 - 8));
+               } else {
+                  *pl++ = prev | (curr >> 8);
+                  prev = (curr << (sizeof(long) * 8 - 8));
+               }
+            }
+            j = (UChar*)pl - yy;
+            tmp = ~((tmp & low_bits) + low_bits) & ~(tmp | low_bits);
+            if (BZ_LITTLE_ENDIAN()) {
+               tmp ^= (tmp - 1);
+               j += sizeof(long) - __builtin_clzl(tmp) / 8;
+               *pl = (curr & ~tmp) | (((curr << 8) | prev) & tmp);
+            } else {
+               j += (__builtin_clzl(tmp) + 8) / 8;
+               tmp = ~0UL >> (__builtin_clzl(tmp) + 8);
+               *pl = (curr & tmp) | (((curr >> 8) | prev) & ~tmp);
+            }
+            mtfv[wr] = j; wr++; s->mtfFreq[j]++;
          }
-
       }
    }
 
-   if (zPend > 0) {
-      do {
+   while (zPend > 0) {
          zPend--;
          if (zPend & 1) {
             mtfv[wr] = BZ_RUNB; wr++; 
@@ -230,7 +241,7 @@ void generateMTFValues ( EState* s )
             mtfv[wr] = BZ_RUNA; wr++; 
             s->mtfFreq[BZ_RUNA]++; 
          }
-      } while (zPend >>= 1);
+         zPend >>= 1;
    }
 
    mtfv[wr] = EOB; wr++; s->mtfFreq[EOB]++;
@@ -289,10 +300,10 @@ void sendMTFValues ( EState* s )
          tFreq = remF / nPart;
          ge = gs-1;
          aFreq = 0;
-         while (aFreq < tFreq && ge < alphaSize-1) {
+         do {
             ge++;
             aFreq += s->mtfFreq[ge];
-         }
+         } while (aFreq < tFreq && ge < alphaSize-1);
 
          if (ge > gs 
              && nPart != nGroups && nPart != 1 
