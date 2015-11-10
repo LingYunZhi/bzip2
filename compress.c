@@ -411,14 +411,15 @@ void sendMTFValues ( EState* s )
             case 49 - (nn):                   \
                icv = mtfv[ge - (49 - (nn))];  \
                cost01 += s->len_pack[icv][0]; \
-               cost[2] += s->len[2][icv];
+               cost23 += s->len[2][icv];
 
          case 3:
             cost01 = 0;
-            cost[2] = 0;
+            cost23 = 0;
             BZ_ITER_GROUP()
             cost[0] = cost01 & 0xffff;
             cost[1] = cost01 >> 16;
+            cost[2] = cost23;
             break;
 
 #undef BZ_ITER
@@ -445,16 +446,16 @@ void sendMTFValues ( EState* s )
                icv = mtfv[ge - (49 - (nn))];  \
                cost01 += s->len_pack[icv][0]; \
                cost23 += s->len_pack[icv][1]; \
-               cost[4] += s->len[4][icv];
+               cost45 += s->len[4][icv];
 
          case 5:
-            cost01 = cost23 = 0;
-            cost[4] = 0;
+            cost01 = cost23 = cost45 = 0;
             BZ_ITER_GROUP()
             cost[0] = cost01 & 0xffff;
             cost[1] = cost01 >> 16;
             cost[2] = cost23 & 0xffff;
             cost[3] = cost23 >> 16;
+            cost[4] = cost45;
             break;
 
 #undef BZ_ITER
@@ -530,16 +531,16 @@ void sendMTFValues ( EState* s )
             case 49 - (nn):                     \
                icv = mtfv[ge - (49 - (nn))];    \
                cost0123 += s->len_pack[icv][0]; \
-               cost[4] += s->len[4][icv];
+               cost45   += s->len[4][icv];
 
          case 5:
-            cost0123 = 0;
-            cost[4] = 0;
+            cost0123 = cost45 = 0;
             BZ_ITER_GROUP()
             cost[0] = cost0123 & 0xffff;
             cost[1] = (cost0123 >> 16) & 0xffff;
             cost[2] = (cost0123 >> 32) & 0xffff;
             cost[3] = cost0123 >> 48;
+            cost[4] = cost45;
             break;
 
 #undef BZ_ITER
