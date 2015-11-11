@@ -307,7 +307,7 @@ Int32 BZ2_decompress ( DState* s )
          for (i = 0; i < nSelectors; i++) {
             v = s->selectorMtf[i];
             tmp = pos[v];
-            while (v > 0) { pos[v] = pos[v-1]; v--; }
+            while (v-- > 0) pos[v + 1] = pos[v];
             pos[0] = tmp;
             s->selector[i] = tmp;
          }
@@ -386,14 +386,10 @@ Int32 BZ2_decompress ( DState* s )
       /*-- end MTF init --*/
 
       nblock = 0;
-      GET_MTF_VAL(BZ_X_MTF_1, BZ_X_MTF_2, nextSym);
-
       while (True) {
 
-         if (nextSym == EOB) break;
-
+         GET_MTF_VAL(BZ_X_MTF_1, BZ_X_MTF_2, nextSym);
          if (nextSym == BZ_RUNA || nextSym == BZ_RUNB) {
-
             es = 0;
             N = 1;
             do {
@@ -407,82 +403,74 @@ Int32 BZ2_decompress ( DState* s )
                es += N << (nextSym == BZ_RUNB);
                N = N * 2;
                GET_MTF_VAL(BZ_X_MTF_3, BZ_X_MTF_4, nextSym);
-            }
-               while (nextSym == BZ_RUNA || nextSym == BZ_RUNB);
+            } while (nextSym == BZ_RUNA || nextSym == BZ_RUNB);
 
             uc = s->seqToUnseq[ s->mtfa[s->mtfbase[0]] ];
             s->unzftab[uc] += es;
 
+            if (nblock + es > nblockMAX) RETURN(BZ_DATA_ERROR);
+
             if (s->smallDecompress)
-               while (es > 0) {
-                  if (nblock >= nblockMAX) RETURN(BZ_DATA_ERROR);
-                  s->ll16[nblock] = (UInt16)uc;
-                  nblock++;
-                  es--;
-               }
+               while (es-- > 0)
+                  s->ll16[nblock++] = (UInt16)uc;
             else
-               while (es > 0) {
-                  if (nblock >= nblockMAX) RETURN(BZ_DATA_ERROR);
-                  s->tt[nblock] = (UInt32)uc;
-                  nblock++;
-                  es--;
-               };
+               while (es-- > 0)
+                  s->tt[nblock++] = (UInt32)uc;
+         }
 
-            continue;
+         if (nextSym == EOB) break;
+         if (nblock >= nblockMAX) RETURN(BZ_DATA_ERROR);
 
-         } else {
+         /*-- uc = MTF ( nextSym-1 ) --*/
+         {
+            UChar *mtfa;
+            UInt32 nn = (UInt32)(nextSym - 1);
 
-            if (nblock >= nblockMAX) RETURN(BZ_DATA_ERROR);
+            if (nn < MTFL_SIZE) {
+               /* avoid general-case expense */
+               mtfa = &s->mtfa[s->mtfbase[0]];
+               uc = mtfa[nn];
+               while (nn-- > 0)
+                  mtfa[nn + 1] = mtfa[nn];
+               mtfa[0] = uc;
+            } else {
+               Int32 pp, lno, off;
 
-            /*-- uc = MTF ( nextSym-1 ) --*/
-            {
-               Int32 ii, jj, kk, pp, lno, off;
-               UInt32 nn;
-               nn = (UInt32)(nextSym - 1);
+               /* general case */
+               lno = nn / MTFL_SIZE;
+               off = nn % MTFL_SIZE;
+               pp = s->mtfbase[lno];
+               mtfa = &s->mtfa[pp];
+               uc = mtfa[off];
+               while (off-- > 0)
+                  mtfa[off + 1] = mtfa[off];
+               while (lno-- > 0) {
+                  Int32 tmp = s->mtfbase[lno] - 1;
+                  s->mtfa[pp] = s->mtfa[tmp + MTFL_SIZE];
+                  s->mtfbase[lno] = pp = tmp;
+               }
+               s->mtfa[pp] = uc;
 
-               if (nn < MTFL_SIZE) {
-                  /* avoid general-case expense */
-                  pp = s->mtfbase[0];
-                  uc = s->mtfa[pp+nn];
-                  memmove(&s->mtfa[pp+1], &s->mtfa[pp], nn);
-                  s->mtfa[pp] = uc;
-               } else { 
-                  /* general case */
-                  lno = nn / MTFL_SIZE;
-                  off = nn % MTFL_SIZE;
-                  pp = s->mtfbase[lno] + off;
-                  uc = s->mtfa[pp];
-                  while (pp > s->mtfbase[lno]) { 
-                     s->mtfa[pp] = s->mtfa[pp-1]; pp--; 
-                  };
-                  do {
-                     s->mtfbase[lno-1]--;
-                     s->mtfa[s->mtfbase[lno]] 
-                        = s->mtfa[s->mtfbase[lno-1] + MTFL_SIZE];
-                  } while (--lno > 0);
-                  s->mtfa[s->mtfbase[0]] = uc;
-                  if (s->mtfbase[0] == 0) {
-                     kk = MTFA_SIZE;
-                     for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
-                        for (jj = MTFL_SIZE; --jj >= 0; ) {
-                           s->mtfa[--kk] = s->mtfa[s->mtfbase[ii] + jj];
-                        }
-                        s->mtfbase[ii] = kk;
+               if (pp == 0) {
+                  Int32 ii, jj, kk;
+                  kk = MTFA_SIZE;
+                  for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
+                     for (jj = MTFL_SIZE; --jj >= 0; ) {
+                        s->mtfa[--kk] = s->mtfa[s->mtfbase[ii] + jj];
                      }
+                     s->mtfbase[ii] = kk;
                   }
                }
             }
-            /*-- end uc = MTF ( nextSym-1 ) --*/
-
-            s->unzftab[s->seqToUnseq[uc]]++;
-            if (s->smallDecompress)
-               s->ll16[nblock] = (UInt16)(s->seqToUnseq[uc]); else
-               s->tt[nblock]   = (UInt32)(s->seqToUnseq[uc]);
-            nblock++;
-
-            GET_MTF_VAL(BZ_X_MTF_5, BZ_X_MTF_6, nextSym);
-            continue;
          }
+         /*-- end uc = MTF ( nextSym-1 ) --*/
+
+         s->unzftab[s->seqToUnseq[uc]]++;
+         if (s->smallDecompress)
+            s->ll16[nblock] = (UInt16)(s->seqToUnseq[uc]);
+         else
+            s->tt[nblock]   = (UInt32)(s->seqToUnseq[uc]);
+         nblock++;
       }
 
       /* Now we know what nblock is, we can do a better sanity
@@ -538,8 +526,7 @@ Int32 BZ2_decompress ( DState* s )
             SET_LL(j, i);
             i = j;
             j = tmp;
-         }
-            while (i != s->origPtr);
+         } while (i != s->origPtr);
 
          s->tPos = s->origPtr;
          s->nblock_used = 0;
@@ -569,7 +556,6 @@ Int32 BZ2_decompress ( DState* s )
          } else {
             BZ_GET_FAST(s->k0); s->nblock_used++;
          }
-
       }
 
       RETURN(BZ_OK);
