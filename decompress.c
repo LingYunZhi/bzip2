@@ -60,30 +60,76 @@ UChar BZ2_MtfDecode( DState* s, Int32 nn )
         /* general case */
         lno = nn / MTFL_SIZE;
         off = nn % MTFL_SIZE;
-        pp = s->mtfbase[lno];
-        mtfa = &s->mtfa[pp];
-        uc = mtfa[off];
-        while (off-- > 0)
-            mtfa[off + 1] = mtfa[off];
-        while (lno-- > 0) {
-            Int32 tmp = s->mtfbase[lno] - 1;
-            s->mtfa[pp] = s->mtfa[tmp + MTFL_SIZE];
-            s->mtfbase[lno] = pp = tmp;
-        }
-        s->mtfa[pp] = uc;
-
-        if (pp == 0) {
+        if (s->mtfbase[0] > 0) {
+            pp = s->mtfbase[lno];
+            mtfa = &s->mtfa[pp];
+            uc = mtfa[off];
+            while (off-- > 0)
+                mtfa[off + 1] = mtfa[off];
+            while (lno-- > 0) {
+                Int32 tmp = s->mtfbase[lno] - 1;
+                s->mtfa[pp] = s->mtfa[tmp + MTFL_SIZE];
+                s->mtfbase[lno] = pp = tmp;
+            }
+            s->mtfa[pp] = uc;
+        } else {
             unsigned long *mtfa;
             ua_ulong *src_mtfa;
             Int32 ii, jj;
+            unsigned long luc;
+            unsigned long val, tmp;
 
             mtfa = s->mtfa + MTFA_SIZE - sizeof(long);
-            for (ii = 256 / MTFL_SIZE - 1; ii >= 0; ii--) {
+            for (ii = 256 / MTFL_SIZE - 1; ii > lno; ii--) {
                 src_mtfa = (ua_ulong *)(s->mtfa + s->mtfbase[ii] + MTFL_SIZE - sizeof(long));
                 for (jj = MTFL_SIZE / sizeof(long) - 1; jj >= 0; jj--)
                     *mtfa-- = (src_mtfa--)->x;
                 s->mtfbase[ii] = MTFA_SIZE - 256 + ii * MTFL_SIZE;
             }
+
+            src_mtfa = (ua_ulong *)(s->mtfa + s->mtfbase[ii] + MTFL_SIZE - sizeof(long));
+            for (jj = MTFL_SIZE / sizeof(long) - 1; jj > off / sizeof(long); jj--)
+                *mtfa-- = (src_mtfa--)->x;
+            val = (src_mtfa--)->x;
+            off = (off % sizeof(long)) * 8;
+            if (BZ_LITTLE_ENDIAN()) {
+                luc = (val >> off) & 0xff;
+                uc = luc;
+                val = ((val & ((1UL << off) - 1)) << 8) |
+                      (val & (~0xffUL << off));
+            } else {
+                luc = (val << off) & (0xffUL << (sizeof(long) * 8 - 8));
+                uc = luc >> (sizeof(long) * 8 - 8);
+                val = ((val & ~(~0UL >> off)) >> 8) |
+                      (val & ((1UL << (sizeof(long) * 8 - 8 - off)) - 1));
+            }
+            while (--jj >= 0) {
+                tmp = (src_mtfa--)->x;
+                if (BZ_LITTLE_ENDIAN()) {
+                    *mtfa-- = val | (tmp >> (sizeof(long) * 8 - 8));
+                    val = tmp << 8;
+                } else {
+                    *mtfa-- = val | (tmp << (sizeof(long) * 8 - 8));
+                    val = tmp >> 8;
+                }
+            }
+            s->mtfbase[ii] = MTFA_SIZE - 256 + ii * MTFL_SIZE;
+
+            while (--ii >= 0) {
+                src_mtfa = (ua_ulong *)(s->mtfa + s->mtfbase[ii] + MTFL_SIZE - sizeof(long));
+                for (jj = MTFL_SIZE / sizeof(long) - 1; jj >= 0; jj--) {
+                    tmp = (src_mtfa--)->x;
+                    if (BZ_LITTLE_ENDIAN()) {
+                        *mtfa-- = val | (tmp >> (sizeof(long) * 8 - 8));
+                        val = tmp << 8;
+                    } else {
+                        *mtfa-- = val | (tmp << (sizeof(long) * 8 - 8));
+                        val = tmp >> 8;
+                    }
+                }
+                s->mtfbase[ii] = MTFA_SIZE - 256 + ii * MTFL_SIZE;
+            }
+            *mtfa = val | luc;
         }
     }
 
