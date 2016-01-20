@@ -22,6 +22,71 @@
 #include <stdlib.h>
 #include "bzlib_private.h"
 
+static
+void BZ2_MtfDecodeInit( DState* s )
+{
+   unsigned long curr;
+   Int32 i;
+
+   if (BZ_LITTLE_ENDIAN())
+      curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
+   else
+      curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
+   for (i = MTFA_SIZE - 256; i < MTFA_SIZE; i += sizeof(long)) {
+      *(unsigned long*)(s->mtfa + i) = curr;
+      curr += sizeof(long) * (~0UL / 0xff);
+   }
+
+   for (i = 0; i < 256 / MTFL_SIZE; i++)
+      s->mtfbase[i] = MTFA_SIZE - 256 + i * MTFL_SIZE;
+}
+
+static inline
+UChar BZ2_MtfDecode( DState* s, Int32 nn )
+{
+    UChar uc;
+    UChar *mtfa;
+
+    if (nn < MTFL_SIZE) {
+        /* avoid general-case expense */
+        mtfa = &s->mtfa[s->mtfbase[0]];
+        uc = mtfa[nn];
+        while (nn-- > 0)
+            mtfa[nn + 1] = mtfa[nn];
+        mtfa[0] = uc;
+    } else {
+        Int32 pp, lno, off;
+
+        /* general case */
+        lno = nn / MTFL_SIZE;
+        off = nn % MTFL_SIZE;
+        pp = s->mtfbase[lno];
+        mtfa = &s->mtfa[pp];
+        uc = mtfa[off];
+        while (off-- > 0)
+            mtfa[off + 1] = mtfa[off];
+        while (lno-- > 0) {
+            Int32 tmp = s->mtfbase[lno] - 1;
+            s->mtfa[pp] = s->mtfa[tmp + MTFL_SIZE];
+            s->mtfbase[lno] = pp = tmp;
+        }
+        s->mtfa[pp] = uc;
+
+        if (pp == 0) {
+            Int32 ii, jj, kk;
+            kk = MTFA_SIZE;
+            for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
+                for (jj = MTFL_SIZE; --jj >= 0; ) {
+                    s->mtfa[--kk] = s->mtfa[s->mtfbase[ii] + jj];
+                }
+                s->mtfbase[ii] = kk;
+            }
+        }
+    }
+
+    return uc;
+}
+
 
 /*---------------------------------------------------*/
 #define RETURN(rrr)                               \
@@ -369,19 +434,7 @@ Int32 BZ2_decompress ( DState* s )
       groupPos = 0;
 
       memset(s->unzftab, 0, sizeof(s->unzftab));
-
-      /*-- MTF init --*/
-      {
-         Int32 ii, jj, kk;
-         kk = MTFA_SIZE;
-         for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
-            for (jj = MTFL_SIZE; --jj >= 0; ) {
-               s->mtfa[--kk] = (UChar)(ii * MTFL_SIZE + jj);
-            }
-            s->mtfbase[ii] = kk;
-         }
-      }
-      /*-- end MTF init --*/
+      BZ2_MtfDecodeInit(s);
 
       nblock = 0;
       while (True) {
@@ -419,50 +472,7 @@ Int32 BZ2_decompress ( DState* s )
          if (nextSym == EOB) break;
          if (nblock >= nblockMAX) RETURN(BZ_DATA_ERROR);
 
-         /*-- uc = MTF ( nextSym-1 ) --*/
-         {
-            UChar *mtfa;
-            UInt32 nn = (UInt32)(nextSym - 1);
-
-            if (nn < MTFL_SIZE) {
-               /* avoid general-case expense */
-               mtfa = &s->mtfa[s->mtfbase[0]];
-               uc = mtfa[nn];
-               while (nn-- > 0)
-                  mtfa[nn + 1] = mtfa[nn];
-               mtfa[0] = uc;
-            } else {
-               Int32 pp, lno, off;
-
-               /* general case */
-               lno = nn / MTFL_SIZE;
-               off = nn % MTFL_SIZE;
-               pp = s->mtfbase[lno];
-               mtfa = &s->mtfa[pp];
-               uc = mtfa[off];
-               while (off-- > 0)
-                  mtfa[off + 1] = mtfa[off];
-               while (lno-- > 0) {
-                  Int32 tmp = s->mtfbase[lno] - 1;
-                  s->mtfa[pp] = s->mtfa[tmp + MTFL_SIZE];
-                  s->mtfbase[lno] = pp = tmp;
-               }
-               s->mtfa[pp] = uc;
-
-               if (pp == 0) {
-                  Int32 ii, jj, kk;
-                  kk = MTFA_SIZE;
-                  for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
-                     for (jj = MTFL_SIZE; --jj >= 0; ) {
-                        s->mtfa[--kk] = s->mtfa[s->mtfbase[ii] + jj];
-                     }
-                     s->mtfbase[ii] = kk;
-                  }
-               }
-            }
-         }
-         /*-- end uc = MTF ( nextSym-1 ) --*/
-
+         uc = BZ2_MtfDecode(s, nextSym - 1);
          s->unzftab[s->seqToUnseq[uc]]++;
          if (s->smallDecompress)
             s->ll16[nblock] = (UInt16)(s->seqToUnseq[uc]);
