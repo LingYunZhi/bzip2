@@ -55,13 +55,14 @@ UChar BZ2_MtfDecode( DState* s, Int32 nn )
             mtfa[nn + 1] = mtfa[nn];
         mtfa[0] = uc;
     } else {
-        Int32 pp, lno, off;
+        Int32 lno, off;
 
-        /* general case */
         lno = nn / MTFL_SIZE;
         off = nn % MTFL_SIZE;
+
         if (s->mtfbase[0] > 0) {
-            pp = s->mtfbase[lno];
+            /* general case */
+            Int32 pp = s->mtfbase[lno];
             mtfa = &s->mtfa[pp];
             uc = mtfa[off];
             while (off-- > 0)
