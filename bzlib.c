@@ -224,26 +224,20 @@ void add_pair_to_block ( EState* s )
    }
    BZ2_SET_INUSE(s, s->state_in_ch);
    switch (s->state_in_len) {
-      case 1:
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         break;
-      case 2:
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         break;
       case 3:
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
+         s->block[s->nblock++] = (UChar)ch;
+      case 2:
+         s->block[s->nblock++] = (UChar)ch;
+      case 1:
+         s->block[s->nblock++] = (UChar)ch;
          break;
       default:
          BZ2_SET_INUSE(s, s->state_in_len-4);
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = (UChar)ch; s->nblock++;
-         s->block[s->nblock] = ((UChar)(s->state_in_len-4));
-         s->nblock++;
+         s->block[s->nblock++] = (UChar)ch;
+         s->block[s->nblock++] = (UChar)ch;
+         s->block[s->nblock++] = (UChar)ch;
+         s->block[s->nblock++] = (UChar)ch;
+         s->block[s->nblock++] = ((UChar)(s->state_in_len-4));
          break;
    }
 }
@@ -268,8 +262,7 @@ void flush_RL ( EState* s )
       UChar ch = (UChar)(zs->state_in_ch);        \
       BZ_UPDATE_CRC( zs->blockCRC, ch );          \
       BZ2_SET_INUSE(zs, zs->state_in_ch);         \
-      zs->block[zs->nblock] = (UChar)ch;          \
-      zs->nblock++;                               \
+      zs->block[zs->nblock++] = ch;               \
       zs->state_in_ch = zchh;                     \
    }                                              \
    else                                           \
@@ -1281,19 +1274,15 @@ int BZ_API(BZ2_bzBuffToBuffCompress)
    strm.avail_out = *destLen;
 
    ret = BZ2_bzCompress ( &strm, BZ_FINISH );
-   if (ret == BZ_FINISH_OK) goto output_overflow;
-   if (ret != BZ_STREAM_END) goto errhandler;
+   if (ret == BZ_STREAM_END) {
+      /* normal termination */
+      *destLen -= strm.avail_out;
+      ret = BZ_OK;
+   }
+   else if (ret == BZ_FINISH_OK) {
+      ret = BZ_OUTBUFF_FULL;
+   }
 
-   /* normal termination */
-   *destLen -= strm.avail_out;   
-   BZ2_bzCompressEnd ( &strm );
-   return BZ_OK;
-
-   output_overflow:
-   BZ2_bzCompressEnd ( &strm );
-   return BZ_OUTBUFF_FULL;
-
-   errhandler:
    BZ2_bzCompressEnd ( &strm );
    return ret;
 }
@@ -1329,24 +1318,18 @@ int BZ_API(BZ2_bzBuffToBuffDecompress)
    strm.avail_out = *destLen;
 
    ret = BZ2_bzDecompress ( &strm );
-   if (ret == BZ_OK) goto output_overflow_or_eof;
-   if (ret != BZ_STREAM_END) goto errhandler;
+   if (ret == BZ_STREAM_END) {
+      /* normal termination */
+      *destLen -= strm.avail_out;
+      ret = BZ_OK;
+   }
+   else if (ret == BZ_OK) {
+      if (strm.avail_out > 0)
+         ret = BZ_UNEXPECTED_EOF;
+      else
+         ret = BZ_OUTBUFF_FULL;
+   }
 
-   /* normal termination */
-   *destLen -= strm.avail_out;
-   BZ2_bzDecompressEnd ( &strm );
-   return BZ_OK;
-
-   output_overflow_or_eof:
-   if (strm.avail_out > 0) {
-      BZ2_bzDecompressEnd ( &strm );
-      return BZ_UNEXPECTED_EOF;
-   } else {
-      BZ2_bzDecompressEnd ( &strm );
-      return BZ_OUTBUFF_FULL;
-   };      
-
-   errhandler:
    BZ2_bzDecompressEnd ( &strm );
    return ret; 
 }
