@@ -116,6 +116,64 @@ void makeMaps_e ( EState* s )
    }
 }
 
+/*---------------------------------------------------*/
+static
+void BZ2_MtfEncodeInit( UChar *yy, Int32 nInUse )
+{
+   unsigned long curr;
+   Int32 i;
+
+   if (BZ_LITTLE_ENDIAN())
+      curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
+   else
+      curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
+   for (i = 0; i < nInUse; i += sizeof(long)) {
+      *(unsigned long*)(yy + i) = curr;
+      curr += sizeof(long) * (~0UL / 0xff);
+   }
+}
+
+/*---------------------------------------------------*/
+static inline
+Int32 BZ2_MtfEncode( UChar *yy, UChar ll_i )
+{
+   const unsigned long one_bits = (~0UL / 0xff);
+   const unsigned long low_bits = 0x7fUL * (~0UL / 0xff);
+   register unsigned long pattern = ll_i * (~0UL / 0xff);
+   unsigned long* pl = (unsigned long *)yy;
+   register unsigned long prev = BZ_LITTLE_ENDIAN() ? ll_i : ((unsigned long)ll_i << (sizeof(long) * 8 - 8));
+   register unsigned long curr, tmp;
+   Int32 j;
+
+   for (;;) {
+      curr = *pl;
+      tmp = curr ^ pattern;
+      if ((tmp - one_bits) & ~(tmp | low_bits))
+         break;
+      if (BZ_LITTLE_ENDIAN()) {
+         *pl++ = prev | (curr << 8);
+         prev = (curr >> (sizeof(long) * 8 - 8));
+      } else {
+         *pl++ = prev | (curr >> 8);
+         prev = (curr << (sizeof(long) * 8 - 8));
+      }
+   }
+
+   j = (UChar*)pl - yy;
+   tmp = ~((tmp & low_bits) + low_bits) & ~(tmp | low_bits);
+   if (BZ_LITTLE_ENDIAN()) {
+      tmp ^= (tmp - 1);
+      j += sizeof(long) - __builtin_clzl(tmp) / 8;
+      *pl = (curr & ~tmp) | (((curr << 8) | prev) & tmp);
+   } else {
+      j += (__builtin_clzl(tmp) + 8) / 8;
+      tmp = ~0UL >> (__builtin_clzl(tmp) + 8);
+      *pl = (curr & tmp) | (((curr >> 8) | prev) & ~tmp);
+   }
+
+   return j;
+}
+
 
 /*---------------------------------------------------*/
 static
@@ -157,19 +215,7 @@ void generateMTFValues ( EState* s )
    EOB = s->nInUse+1;
 
    memset(s->mtfFreq, 0, sizeof(s->mtfFreq[0]) * (1 + EOB));
-
-   {
-      unsigned long curr;
-
-      if (BZ_LITTLE_ENDIAN())
-         curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
-      else
-         curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
-      for (i = 0; i < s->nInUse; i += sizeof(long)) {
-         *(unsigned long*)(yy + i) = curr;
-         curr += sizeof(long) * (~0UL / 0xff);
-      }
-   }
+   BZ2_MtfEncodeInit(yy, s->nInUse);
 
    wr = 0;
    zPend = 0;
@@ -195,39 +241,9 @@ void generateMTFValues ( EState* s )
                }
                zPend >>= 1;
          }
-         {
-            const unsigned long one_bits = (~0UL / 0xff);
-            const unsigned long low_bits = 0x7fUL * (~0UL / 0xff);
-            register unsigned long pattern = ll_i * (~0UL / 0xff);
-            unsigned long* pl = (unsigned long *)yy;
-            register unsigned long prev = BZ_LITTLE_ENDIAN() ? ll_i : ((unsigned long)ll_i << (sizeof(long) * 8 - 8));
-            register unsigned long curr, tmp;
-            for (;;) {
-               curr = *pl;
-               tmp = curr ^ pattern;
-               if ((tmp - one_bits) & ~(tmp | low_bits))
-                  break;
-               if (BZ_LITTLE_ENDIAN()) {
-                  *pl++ = prev | (curr << 8);
-                  prev = (curr >> (sizeof(long) * 8 - 8));
-               } else {
-                  *pl++ = prev | (curr >> 8);
-                  prev = (curr << (sizeof(long) * 8 - 8));
-               }
-            }
-            j = (UChar*)pl - yy;
-            tmp = ~((tmp & low_bits) + low_bits) & ~(tmp | low_bits);
-            if (BZ_LITTLE_ENDIAN()) {
-               tmp ^= (tmp - 1);
-               j += sizeof(long) - __builtin_clzl(tmp) / 8;
-               *pl = (curr & ~tmp) | (((curr << 8) | prev) & tmp);
-            } else {
-               j += (__builtin_clzl(tmp) + 8) / 8;
-               tmp = ~0UL >> (__builtin_clzl(tmp) + 8);
-               *pl = (curr & tmp) | (((curr >> 8) | prev) & ~tmp);
-            }
-            mtfv[wr] = j; wr++; s->mtfFreq[j]++;
-         }
+
+         j = BZ2_MtfEncode(yy, ll_i);
+         mtfv[wr] = j; wr++; s->mtfFreq[j]++;
       }
    }
 
