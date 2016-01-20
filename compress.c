@@ -104,15 +104,14 @@ static
 void makeMaps_e ( EState* s )
 {
    Int32 i, j;
+
    s->nInUse = 0;
    for (i = 0; i < 16; i++) {
-      UInt16 use = s->inUse[i];
-      for (j = 0; use; j++) {
-         if (use & 0x8000U) {
-            s->unseqToSeq[i * 16 + j] = s->nInUse;
-            s->nInUse++;
-         }
-         use <<= 1;
+      Int16 inUse = s->inUse[i];
+      for (j = i * 16; inUse; j++) {
+         if (inUse < 0)
+            s->unseqToSeq[j] = s->nInUse++;
+         inUse <<= 1;
       }
    }
 }

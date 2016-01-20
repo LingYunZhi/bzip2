@@ -135,7 +135,7 @@ Int32 BZ2_decompress ( DState* s )
    Int32* gLimit;
    Int32* gBase;
    Int32* gPerm;
-   UInt16 inUse16;
+   Int16 inUse16;
    Int32 prev;
 
    if (s->state == BZ_X_MAGIC_1) {
@@ -270,14 +270,12 @@ Int32 BZ2_decompress ( DState* s )
 
       s->nInUse = 0;
       for (i = 0; inUse16; i++) {
-         if (inUse16 & 0x8000U) {
-            UInt16 inUse;
+         if (inUse16 < 0) {
+            Int16 inUse;
             GET_BITS(BZ_X_MAPPING_2, inUse, 16);
-            for (j = 0; inUse; j++) {
-            	if (inUse & 0x8000U) {
-                  s->seqToUnseq[s->nInUse] = i * 16 + j;
-                  s->nInUse++;
-               }
+            for (j = i * 16; inUse; j++) {
+               if (inUse < 0)
+                  s->seqToUnseq[s->nInUse++] = j;
                inUse <<= 1;
             }
          }
@@ -324,7 +322,7 @@ Int32 BZ2_decompress ( DState* s )
 
          for (i = 1; i < alphaSize; i++) {
             NEED_BITS(BZ_X_CODING_2, 24);
-            if (s->bsBuff & 0x80000000) {
+            if ((Int32)s->bsBuff < 0) {
                j = !(s->bsBuff & 0x40000000) ? 0 : 0x55555500;
                if ((s->bsBuff & 0xaaaaaa00) == 0xaaaaaa00) {
                   if ((s->bsBuff ^ j) & 0x55555500) RETURN(BZ_DATA_ERROR);
