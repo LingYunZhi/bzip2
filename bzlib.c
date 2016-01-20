@@ -1118,10 +1118,9 @@ BZFILE* BZ_API(BZ2_bzReadOpen)
    bzf->strm.bzfree   = NULL;
    bzf->strm.opaque   = NULL;
    
-   while (nUnused > 0) {
-      bzf->buf[bzf->bufN] = *((UChar*)(unused)); bzf->bufN++;
-      unused = ((void*)( 1 + ((UChar*)(unused))  ));
-      nUnused--;
+   if (nUnused > 0) {
+      memcpy(bzf->buf, unused, nUnused);
+      bzf->bufN = nUnused;
    }
 
    ret = BZ2_bzDecompressInit ( &(bzf->strm), verbosity, small );
