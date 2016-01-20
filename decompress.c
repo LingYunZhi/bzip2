@@ -73,13 +73,16 @@ UChar BZ2_MtfDecode( DState* s, Int32 nn )
         s->mtfa[pp] = uc;
 
         if (pp == 0) {
-            Int32 ii, jj, kk;
-            kk = MTFA_SIZE;
-            for (ii = 256 / MTFL_SIZE; --ii >= 0; ) {
-                for (jj = MTFL_SIZE; --jj >= 0; ) {
-                    s->mtfa[--kk] = s->mtfa[s->mtfbase[ii] + jj];
-                }
-                s->mtfbase[ii] = kk;
+            unsigned long *mtfa;
+            ua_ulong *src_mtfa;
+            Int32 ii, jj;
+
+            mtfa = s->mtfa + MTFA_SIZE - sizeof(long);
+            for (ii = 256 / MTFL_SIZE - 1; ii >= 0; ii--) {
+                src_mtfa = (ua_ulong *)(s->mtfa + s->mtfbase[ii] + MTFL_SIZE - sizeof(long));
+                for (jj = MTFL_SIZE / sizeof(long) - 1; jj >= 0; jj--)
+                    *mtfa-- = (src_mtfa--)->x;
+                s->mtfbase[ii] = MTFA_SIZE - 256 + ii * MTFL_SIZE;
             }
         }
     }

@@ -179,7 +179,7 @@ Int32 BZ2_MtfEncode( UChar *yy, UChar ll_i )
 static
 void generateMTFValues ( EState* s )
 {
-   UChar   yy[256];
+   LOCAL_DECALRE_ALIGNED_ARRAY(UChar, yy, 256, sizeof(long));
    Int32   i, j;
    UInt32  zPend;
    Int32   wr;

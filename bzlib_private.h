@@ -34,6 +34,16 @@
 #include "bzlib.h"
 
 
+#if defined(__GNUC__)
+#define DECLARE_ALIGNED(type, name, n) type name __attribute__((aligned(n)))
+#else
+#define DECLARE_ALIGNED(type, name, n) __declspec(align(n)) type name
+#endif
+
+#define LOCAL_DECALRE_ALIGNED_ARRAY(type, name, count, n) \
+char name ## _a[sizeof(type) * (count) + (n)]; \
+type *name = (type *) (((unsigned long) name ## _a + (n) - 1) & -(n))
+
 
 /*-- General stuff. --*/
 
@@ -363,6 +373,9 @@ BZ2_hbMakeCodeLengths ( UChar*, Int32*, Int32, Int32 );
 #define MTFL_SIZE 16
 
 
+#pragma pack(push, 1)
+typedef struct { unsigned long x; } ua_ulong;
+#pragma pack(pop)
 
 /*-- Structure holding all the decompression-side stuff. --*/
 
@@ -417,7 +430,7 @@ typedef
       UChar    seqToUnseq[256];
 
       /* for decoding the MTF values */
-      UChar    mtfa   [MTFA_SIZE];
+      DECLARE_ALIGNED(UChar, mtfa[MTFA_SIZE], sizeof(long));
       Int32    mtfbase[256 / MTFL_SIZE];
       UChar    selector   [BZ_MAX_SELECTORS];
       UChar    selectorMtf[BZ_MAX_SELECTORS];
