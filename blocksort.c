@@ -134,31 +134,31 @@ void fallbackQSort3 ( UInt32* fmap,
       unHi = gtHi = hi;
 
       do {
-         while (unLo <= unHi) {
+         for (;;) {
             n = (Int32)eclass[fmap[unLo]] - (Int32)med;
+            if (n > 0) break;
             if (n == 0) { 
                fswap(fmap[unLo], fmap[ltLo]); 
-               ltLo++; unLo++; 
-               continue; 
-            };
-            if (n > 0) break;
+               ltLo++;
+            }
             unLo++;
+            if (unLo > unHi)
+               goto out;
          }
-         while (unLo <= unHi) {
+         for (;;) {
             n = (Int32)eclass[fmap[unHi]] - (Int32)med;
+            if (n < 0) break;
             if (n == 0) { 
                fswap(fmap[unHi], fmap[gtHi]); 
-               gtHi--; unHi--; 
-               continue; 
-            };
-            if (n < 0) break;
+               gtHi--;
+            }
             unHi--;
+            if (unLo > unHi)
+               goto out;
          }
-         if (unLo <= unHi) {
-            fswap(fmap[unLo], fmap[unHi]); unLo++; unHi--;
-         }
+         fswap(fmap[unLo], fmap[unHi]); unLo++; unHi--;
       } while (unLo <= unHi);
-
+out:
       AssertD ( unHi == unLo-1, "fallbackQSort3(2)" );
 
       if (gtHi < ltLo) continue;
@@ -709,29 +709,31 @@ void mainQSort3 ( UInt32* ptr,
       unHi = gtHi = hi;
 
       do {
-         while (unLo <= unHi) {
+         for (;;) {
             n = ((Int32)block[ptr[unLo]+d]) - med;
+            if (n >  0) break;
             if (n == 0) { 
                mswap(ptr[unLo], ptr[ltLo]); 
-               ltLo++; unLo++; continue; 
-            };
-            if (n >  0) break;
+               ltLo++;
+            }
             unLo++;
+            if (unLo > unHi)
+               goto out;
          }
-         while (unLo <= unHi) {
+         for (;;) {
             n = ((Int32)block[ptr[unHi]+d]) - med;
+            if (n <  0) break;
             if (n == 0) { 
                mswap(ptr[unHi], ptr[gtHi]); 
-               gtHi--; unHi--; continue; 
-            };
-            if (n <  0) break;
+               gtHi--;
+            }
             unHi--;
+            if (unLo > unHi)
+               goto out;
          }
-         if (unLo <= unHi) {
-            mswap(ptr[unLo], ptr[unHi]); unLo++; unHi--;
-         }
+         mswap(ptr[unLo], ptr[unHi]); unLo++; unHi--;
       } while (unLo <= unHi);
-
+out:
       AssertD ( unHi == unLo-1, "mainQSort3(2)" );
 
       if (gtHi < ltLo) {

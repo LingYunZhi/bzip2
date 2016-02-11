@@ -232,34 +232,24 @@ void generateMTFValues ( EState* s )
 
          while (zPend > 0) {
                zPend--;
-               if (zPend & 1) {
-                  mtfv[wr] = BZ_RUNB; wr++; 
-                  s->mtfFreq[BZ_RUNB]++; 
-               } else {
-                  mtfv[wr] = BZ_RUNA; wr++; 
-                  s->mtfFreq[BZ_RUNA]++; 
-               }
+               mtfv[wr++] = BZ_RUNA + (zPend & 1);
+               s->mtfFreq[BZ_RUNA + (zPend & 1)]++;
                zPend >>= 1;
          }
 
          j = BZ2_MtfEncode(yy, ll_i);
-         mtfv[wr] = j; wr++; s->mtfFreq[j]++;
+         mtfv[wr++] = j; s->mtfFreq[j]++;
       }
    }
 
    while (zPend > 0) {
          zPend--;
-         if (zPend & 1) {
-            mtfv[wr] = BZ_RUNB; wr++; 
-            s->mtfFreq[BZ_RUNB]++; 
-         } else {
-            mtfv[wr] = BZ_RUNA; wr++; 
-            s->mtfFreq[BZ_RUNA]++; 
-         }
+         mtfv[wr++] = BZ_RUNA + (zPend & 1);
+         s->mtfFreq[BZ_RUNA + (zPend & 1)]++;
          zPend >>= 1;
    }
 
-   mtfv[wr] = EOB; wr++; s->mtfFreq[EOB]++;
+   mtfv[wr++] = EOB; s->mtfFreq[EOB]++;
 
    s->nMTF = wr;
 }
