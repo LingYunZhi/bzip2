@@ -27,6 +27,53 @@
 /*--- algorithm, for repetitive blocks      ---*/
 /*---------------------------------------------*/
 
+#define initFreqTab(nblock, ftab, count) \
+do { \
+   int __i = nblock; \
+   memset(ftab, 0, sizeof(ftab[0]) * count); \
+   while (__i >= 4) { \
+      ftab[INDEX(__i - 1)]++; \
+      ftab[INDEX(__i - 2)]++; \
+      ftab[INDEX(__i - 3)]++; \
+      ftab[INDEX(__i - 4)]++; \
+      __i = __i - 4; \
+   } \
+   while (__i-- > 0) { \
+      ftab[INDEX(__i)]++; \
+   } \
+} while (0)
+
+static void countFreqTab(UInt32 *ftab, int count)
+{
+   UInt32 sum = ftab[0];
+   int i;
+   for (i = 0; i < count; i += 8) {
+      ftab[i+1] = (sum += ftab[i+1]);
+      ftab[i+2] = (sum += ftab[i+2]);
+      ftab[i+3] = (sum += ftab[i+3]);
+      ftab[i+4] = (sum += ftab[i+4]);
+      ftab[i+5] = (sum += ftab[i+5]);
+      ftab[i+6] = (sum += ftab[i+6]);
+      ftab[i+7] = (sum += ftab[i+7]);
+      ftab[i+8] = (sum += ftab[i+8]);
+   }
+}
+
+#define sortFreqTab(nblock, ftab, ptr) \
+do { \
+   int __i = nblock; \
+   while (__i >= 4) { \
+      ptr[--ftab[INDEX(__i - 1)]] = __i - 1; \
+      ptr[--ftab[INDEX(__i - 2)]] = __i - 2; \
+      ptr[--ftab[INDEX(__i - 3)]] = __i - 3; \
+      ptr[--ftab[INDEX(__i - 4)]] = __i - 4; \
+      __i = __i - 4; \
+   } \
+   while (__i-- > 0) { \
+      ptr[--ftab[INDEX(__i)]] = __i; \
+   } \
+} while (0)
+
 /*---------------------------------------------*/
 static 
 __inline__
@@ -215,8 +262,8 @@ void fallbackSort ( UInt32* fmap,
                     Int32   nblock,
                     Int32   verb )
 {
-   Int32 ftab[257];
-   Int32 ftabCopy[256];
+   UInt32 ftab[257];
+   UInt32 ftabCopy[256];
    Int32 H, i, j, k, l, r, cc, cc1;
    Int32 nNotDone;
    UChar* eclass8 = (UChar*)eclass;
@@ -227,26 +274,15 @@ void fallbackSort ( UInt32* fmap,
    --*/
    if (verb >= 4)
       VPrintf0 ( "        bucket sorting ...\n" );
-   memset(ftab, 0, sizeof(ftab));
-   for (i = 0; i < nblock; i++) ftab[eclass8[i]]++;
-   memcpy(ftabCopy, ftab, sizeof(ftabCopy));
-   for (i = 0; i < 256; i += 8) {
-      ftab[i+1] += ftab[i+0];
-      ftab[i+2] += ftab[i+1];
-      ftab[i+3] += ftab[i+2];
-      ftab[i+4] += ftab[i+3];
-      ftab[i+5] += ftab[i+4];
-      ftab[i+6] += ftab[i+5];
-      ftab[i+7] += ftab[i+6];
-      ftab[i+8] += ftab[i+7];
-   }
 
-   for (i = 0; i < nblock; i++) {
-      j = eclass8[i];
-      k = ftab[j] - 1;
-      ftab[j] = k;
-      fmap[k] = i;
-   }
+#define INDEX(i) eclass8[i]
+
+   initFreqTab(nblock, ftab, 257);
+   memcpy(ftabCopy, ftab, sizeof(ftabCopy));
+   countFreqTab(ftab, 256);
+   sortFreqTab(nblock, ftab, fmap);
+
+#undef INDEX
 
    memset(bhtab, 0, sizeof(bhtab[0]) * ((nblock + 31) / 32));
    for (i = 0; i < 256; i += 8) {
@@ -808,28 +844,14 @@ void mainSort ( UInt32* ptr,
    Int32  copyEnd  [256];
    UChar  c1;
    Int32  numQSorted;
-   UInt16 s;
+
    if (verb >= 4) VPrintf0 ( "        main sort initialise ...\n" );
 
    /*-- set up the 2-byte frequency table --*/
-   memset(ftab, 0, sizeof(ftab[0]) * 65537);
+#define INDEX(i) (j = (j >> 8) | ( ((UInt16)block[i]) << 8))
 
    j = block[0] << 8;
-   i = nblock-1;
-   for (; i >= 3; i -= 4) {
-      j = (j >> 8) | ( ((UInt16)block[i]) << 8);
-      ftab[j]++;
-      j = (j >> 8) | ( ((UInt16)block[i-1]) << 8);
-      ftab[j]++;
-      j = (j >> 8) | ( ((UInt16)block[i-2]) << 8);
-      ftab[j]++;
-      j = (j >> 8) | ( ((UInt16)block[i-3]) << 8);
-      ftab[j]++;
-   }
-   for (; i >= 0; i--) {
-      j = (j >> 8) | ( ((UInt16)block[i]) << 8);
-      ftab[j]++;
-   }
+   initFreqTab(nblock, ftab, 65537);
 
    /*-- (emphasises close relationship of block & quadrant) --*/
    memcpy(block + nblock, block, sizeof(block[0]) * BZ_N_OVERSHOOT);
@@ -838,43 +860,11 @@ void mainSort ( UInt32* ptr,
    if (verb >= 4) VPrintf0 ( "        bucket sorting ...\n" );
 
    /*-- Complete the initial radix sort --*/
-   for (i = 0; i < 65536; i += 8) {
-      ftab[i+1] += ftab[i+0];
-      ftab[i+2] += ftab[i+1];
-      ftab[i+3] += ftab[i+2];
-      ftab[i+4] += ftab[i+3];
-      ftab[i+5] += ftab[i+4];
-      ftab[i+6] += ftab[i+5];
-      ftab[i+7] += ftab[i+6];
-      ftab[i+8] += ftab[i+7];
-   }
+   countFreqTab(ftab, 65536);
+   j = block[0] << 8;
+   sortFreqTab(nblock, ftab, ptr);
 
-   s = block[0] << 8;
-   i = nblock-1;
-   for (; i >= 3; i -= 4) {
-      s = (s >> 8) | (block[i] << 8);
-      j = ftab[s] -1;
-      ftab[s] = j;
-      ptr[j] = i;
-      s = (s >> 8) | (block[i-1] << 8);
-      j = ftab[s] -1;
-      ftab[s] = j;
-      ptr[j] = i-1;
-      s = (s >> 8) | (block[i-2] << 8);
-      j = ftab[s] -1;
-      ftab[s] = j;
-      ptr[j] = i-2;
-      s = (s >> 8) | (block[i-3] << 8);
-      j = ftab[s] -1;
-      ftab[s] = j;
-      ptr[j] = i-3;
-   }
-   for (; i >= 0; i--) {
-      s = (s >> 8) | (block[i] << 8);
-      j = ftab[s] -1;
-      ftab[s] = j;
-      ptr[j] = i;
-   }
+#undef INDEX
 
    /*--
       Now ftab contains the first loc of every small bucket.
