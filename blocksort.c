@@ -219,7 +219,6 @@ void fallbackSort ( UInt32* fmap,
    Int32 ftabCopy[256];
    Int32 H, i, j, k, l, r, cc, cc1;
    Int32 nNotDone;
-   Int32 nBhtab;
    UChar* eclass8 = (UChar*)eclass;
 
    /*--
@@ -249,8 +248,7 @@ void fallbackSort ( UInt32* fmap,
       fmap[k] = i;
    }
 
-   nBhtab = 2 + (nblock / 32);
-   memset(bhtab, 0, sizeof(bhtab[0]) * nBhtab);
+   memset(bhtab, 0, sizeof(bhtab[0]) * ((nblock + 31) / 32));
    for (i = 0; i < 256; i += 8) {
       SET_BH(ftab[i + 0]);
       SET_BH(ftab[i + 1]);
@@ -270,7 +268,6 @@ void fallbackSort ( UInt32* fmap,
 
    /*-- set sentinel bits for block-end detection --*/
    if (UNALIGNED_BH(nblock)) {
-      bhtab[(nblock >> 5) + 0] &= ((1U << (nblock & 31)) - 1);
       bhtab[(nblock >> 5) + 0] |= 0x55555555 << (nblock & 31);
       bhtab[(nblock >> 5) + 1] = 0x55555555 << (nblock & 1);
       bhtab[(nblock >> 5) + 2] = 0x55555555 >> (32 - (nblock & 31));
