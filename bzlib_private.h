@@ -427,6 +427,7 @@ typedef
 
       /* map of bytes used in block */
       Int32    nInUse;
+      Int16    inUse16;
       UChar    seqToUnseq[256];
 
       /* for decoding the MTF values */

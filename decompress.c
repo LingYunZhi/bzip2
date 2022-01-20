@@ -250,7 +250,6 @@ Int32 BZ2_decompress ( DState* s )
    Int32* gLimit;
    Int32* gBase;
    Int32* gPerm;
-   Int16 inUse16;
    Int32 prev;
 
    if (s->state == BZ_X_MAGIC_1) {
@@ -381,11 +380,11 @@ Int32 BZ2_decompress ( DState* s )
          RETURN(BZ_DATA_ERROR);
 
       /*--- Receive the mapping table ---*/
-      GET_BITS(BZ_X_MAPPING_1, inUse16, 16);
+      GET_BITS(BZ_X_MAPPING_1, s->inUse16, 16);
 
       s->nInUse = 0;
-      for (i = 0; inUse16; i++) {
-         if (inUse16 < 0) {
+      for (i = 0; s->inUse16; i++) {
+         if (s->inUse16 < 0) {
             Int16 inUse;
             GET_BITS(BZ_X_MAPPING_2, inUse, 16);
             for (j = i * 16; inUse; j++) {
@@ -394,7 +393,7 @@ Int32 BZ2_decompress ( DState* s )
                inUse <<= 1;
             }
          }
-         inUse16 <<= 1;
+         s->inUse16 <<= 1;
       }
       if (s->nInUse == 0) RETURN(BZ_DATA_ERROR);
       alphaSize = s->nInUse+2;
