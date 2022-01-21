@@ -117,23 +117,6 @@ void makeMaps_e ( EState* s )
 }
 
 /*---------------------------------------------------*/
-static
-void BZ2_MtfEncodeInit( UChar *yy, Int32 nInUse )
-{
-   unsigned long curr;
-   Int32 i;
-
-   if (BZ_LITTLE_ENDIAN())
-      curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
-   else
-      curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
-   for (i = 0; i < nInUse; i += sizeof(long)) {
-      *(unsigned long*)(yy + i) = curr;
-      curr += sizeof(long) * (~0UL / 0xff);
-   }
-}
-
-/*---------------------------------------------------*/
 static inline
 Int32 BZ2_MtfEncode( UChar *yy, UChar ll_i )
 {
@@ -215,7 +198,7 @@ void generateMTFValues ( EState* s )
    EOB = s->nInUse+1;
 
    memset(s->mtfFreq, 0, sizeof(s->mtfFreq[0]) * (1 + EOB));
-   BZ2_MtfEncodeInit(yy, s->nInUse);
+   BZ2_IndexTableInit(yy, s->nInUse);
 
    wr = 0;
    zPend = 0;

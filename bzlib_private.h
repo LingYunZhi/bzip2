@@ -204,6 +204,23 @@ extern const UInt32 BZ2_crc32Table[256];
 }
 
 
+/* the tabled must be aligned on long word boundary */
+static inline
+void BZ2_IndexTableInit( UChar *table, Int32 n )
+{
+   unsigned long curr;
+   Int32 i;
+
+   if (BZ_LITTLE_ENDIAN())
+      curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
+   else
+      curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
+   for (i = 0; i < n; i += sizeof(long)) {
+      *(unsigned long*)(table + i) = curr;
+      curr += sizeof(long) * (~0UL / 0xff);
+   }
+}
+
 
 /*-- States and modes for compression. --*/
 

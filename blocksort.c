@@ -822,7 +822,7 @@ Int32 mainSort ( UInt32* fmap,
                 Int32   budget )
 {
    Int32  i, j, k, ss, sb;
-   Int32  runningOrder[256];
+   LOCAL_DECALRE_ALIGNED_ARRAY(UChar, runningOrder, 256, sizeof(long));
    Bool   bigDone[256];
    Int32  copyStart[256];
    Int32  copyEnd  [256];
@@ -857,8 +857,7 @@ Int32 mainSort ( UInt32* fmap,
       big bucket.
    --*/
    memset(bigDone, 0, sizeof(bigDone[0]) * 256);
-   for (i = 0; i <= 255; i++)
-      runningOrder[i] = i;
+   BZ2_IndexTableInit(runningOrder, 256);
 
    {
       Int32 h = 1;
@@ -867,7 +866,7 @@ Int32 mainSort ( UInt32* fmap,
       do {
          h = h / 3;
          for (i = h; i <= 255; i++) {
-            Int32 vv = runningOrder[i];
+            UChar vv = runningOrder[i];
             j = i;
             while ( BIGFREQ(runningOrder[j - h]) > BIGFREQ(vv) ) {
                runningOrder[j] = runningOrder[j - h];

@@ -25,17 +25,9 @@
 static
 void BZ2_MtfDecodeInit( DState* s )
 {
-   unsigned long curr;
    Int32 i;
 
-   if (BZ_LITTLE_ENDIAN())
-      curr = sizeof(long) == 8 ? 0x0706050403020100UL : 0x03020100UL;
-   else
-      curr = sizeof(long) == 8 ? 0x0001020304050607UL : 0x00010203UL;
-   for (i = MTFA_SIZE - 256; i < MTFA_SIZE; i += sizeof(long)) {
-      *(unsigned long*)(s->mtfa + i) = curr;
-      curr += sizeof(long) * (~0UL / 0xff);
-   }
+   BZ2_IndexTableInit(&s->mtfa[MTFA_SIZE - 256], 256);
 
    for (i = 0; i < 256 / MTFL_SIZE; i++)
       s->mtfbase[i] = MTFA_SIZE - 256 + i * MTFL_SIZE;
