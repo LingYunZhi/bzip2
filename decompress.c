@@ -137,38 +137,28 @@ UChar BZ2_MtfDecode( DState* s, Int32 nn )
 #define NEED_BITS(lll,nnn)                        \
    case lll: s->state = lll;                      \
    if (__builtin_constant_p(nnn) && nnn <= 8) {   \
-     if (s->bsLive > 32 - nnn) {                  \
-        if (s->strm->avail_in == 0) RETURN(BZ_OK);\
-        s->bsLive -= 8;                           \
-        s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                         << s->bsLive;            \
-        s->strm->next_in++;                       \
-        s->strm->avail_in--;                      \
-        s->strm->total_in_lo32++;                 \
-        if (s->strm->total_in_lo32 == 0)          \
-           s->strm->total_in_hi32++;              \
+     if (bsLive > 32 - nnn) {                     \
+        if (inPtr == inEnd) RETURN(BZ_OK);        \
+        bsLive -= 8;                              \
+        bsBuff |= ((UInt32)(*inPtr)) << bsLive;   \
+        inPtr++;                                  \
      }                                            \
    } else {                                       \
-     while (s->bsLive > 32 - nnn) {               \
-        if (s->strm->avail_in == 0) RETURN(BZ_OK);\
-        s->bsLive -= 8;                           \
-        s->bsBuff |= ((UInt32)(*((UChar*)(s->strm->next_in)))) \
-                         << s->bsLive;            \
-        s->strm->next_in++;                       \
-        s->strm->avail_in--;                      \
-        s->strm->total_in_lo32++;                 \
-        if (s->strm->total_in_lo32 == 0)          \
-           s->strm->total_in_hi32++;              \
+     while (bsLive > 32 - nnn) {                  \
+        if (inPtr == inEnd) RETURN(BZ_OK);        \
+        bsLive -= 8;                              \
+        bsBuff |= ((UInt32)(*inPtr)) << bsLive;   \
+        inPtr++;                                  \
      }                                            \
    }
 
 #define DROP_BITS(nnn)                            \
-   s->bsBuff <<= nnn;                             \
-   s->bsLive += nnn;
+   bsBuff <<= nnn;                                \
+   bsLive += nnn;
 
 #define GET_BITS(lll,vvv,nnn)                     \
    NEED_BITS(lll,nnn);                            \
-   vvv = s->bsBuff >> (32 - nnn);                 \
+   vvv = bsBuff >> (32 - nnn);                    \
    DROP_BITS(nnn)
 
 #define GET_UCHAR(lll,uuu)                        \
@@ -243,6 +233,11 @@ Int32 BZ2_decompress ( DState* s )
    Int32* gBase;
    Int32* gPerm;
    Int32 prev;
+   UInt32 bsBuff = s->bsBuff;
+   Int32 bsLive = s->bsLive;
+   UChar *inPtr = (UChar*)s->strm->next_in;
+   UChar *inEnd = (UChar*)s->strm->next_in + s->strm->avail_in;
+   UInt32 consumed;
 
    if (s->state == BZ_X_MAGIC_1) {
       /*initialise the save area*/
@@ -397,7 +392,7 @@ Int32 BZ2_decompress ( DState* s )
       if (nSelectors < 1) RETURN(BZ_DATA_ERROR);
       for (i = 0; i < nSelectors; i++) {
          NEED_BITS(BZ_X_SELECTOR_3, nGroups);
-         j = __builtin_clz(~s->bsBuff);
+         j = __builtin_clz(~bsBuff);
          if (j >= nGroups) RETURN(BZ_DATA_ERROR);
          DROP_BITS(j + 1);
          /* Having more than BZ_MAX_SELECTORS doesn't make much sense
@@ -434,17 +429,17 @@ Int32 BZ2_decompress ( DState* s )
 
          for (i = 1; i < alphaSize; i++) {
             NEED_BITS(BZ_X_CODING_2, 24);
-            if ((Int32)s->bsBuff < 0) {
-               j = !(s->bsBuff & 0x40000000) ? 0 : 0x55555500;
-               if ((s->bsBuff & 0xaaaaaa00) == 0xaaaaaa00) {
-                  if ((s->bsBuff ^ j) & 0x55555500) RETURN(BZ_DATA_ERROR);
+            if ((Int32)bsBuff < 0) {
+               j = !(bsBuff & 0x40000000) ? 0 : 0x55555500;
+               if ((bsBuff & 0xaaaaaa00) == 0xaaaaaa00) {
+                  if ((bsBuff ^ j) & 0x55555500) RETURN(BZ_DATA_ERROR);
                   curr += !j ? 12 : -12;
                   DROP_BITS(24);
                   NEED_BITS(BZ_X_CODING_3, 24);
                }
-               uc = __builtin_clz(~(s->bsBuff | 0x55555500));
+               uc = __builtin_clz(~(bsBuff | 0x55555500));
                if (uc) {
-                  if (((s->bsBuff ^ j) & 0x55555500) >> (32 - uc)) RETURN(BZ_DATA_ERROR);
+                  if (((bsBuff ^ j) & 0x55555500) >> (32 - uc)) RETURN(BZ_DATA_ERROR);
                   curr += (!j ? uc : -uc) / 2;
                   DROP_BITS(uc);
                }
@@ -675,7 +670,17 @@ Int32 BZ2_decompress ( DState* s )
    s->save_gBase       = gBase;
    s->save_gPerm       = gPerm;
 
-   return retVal;   
+   s->bsBuff = bsBuff;
+   s->bsLive = bsLive;
+
+   consumed = (char*)inPtr - s->strm->next_in;
+   s->strm->next_in = (char*)inPtr;
+   s->strm->avail_in -= consumed;
+   s->strm->total_in_lo32 += consumed;
+   if (s->strm->total_in_lo32 < consumed)
+      s->strm->total_in_hi32++;
+
+   return retVal;
 }
 
 
