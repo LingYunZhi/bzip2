@@ -160,7 +160,7 @@ extern void bz_internal_error ( int errcode );
 
 /*-- Stuff for randomising repetitive blocks. --*/
 
-extern Int32 BZ2_rNums[512];
+extern const Int32 BZ2_rNums[512];
 
 #define BZ_RAND_DECLS                          \
    Int32 rNToGo;                               \
@@ -184,7 +184,7 @@ extern Int32 BZ2_rNums[512];
 
 /*-- Stuff for doing CRCs. --*/
 
-extern UInt32 BZ2_crc32Table[256];
+extern const UInt32 BZ2_crc32Table[256];
 
 #define BZ_INITIALISE_CRC(crcVar)              \
 {                                              \
