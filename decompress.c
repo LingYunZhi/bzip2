@@ -420,14 +420,8 @@ Int32 BZ2_decompress ( DState* s )
 
       /*--- Now the coding tables ---*/
       for (t = 0; t < nGroups; t++) {
-         GET_BITS(BZ_X_CODING_1, curr, 6);
-         if (curr & 1)
-            RETURN(BZ_DATA_ERROR);
-         curr >>= 1;
-         if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
-         s->len[t][0] = curr;
-
-         for (i = 1; i < alphaSize; i++) {
+         GET_BITS(BZ_X_CODING_1, curr, 5);
+         for (i = 0; i < alphaSize; i++) {
             NEED_BITS(BZ_X_CODING_2, 24);
             if ((Int32)bsBuff < 0) {
                j = !(bsBuff & 0x40000000) ? 0 : 0x55555500;
@@ -443,9 +437,9 @@ Int32 BZ2_decompress ( DState* s )
                   curr += (!j ? uc : -uc) / 2;
                   DROP_BITS(uc);
                }
-               if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
             }
             DROP_BITS(1);
+            if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
             s->len[t][i] = curr;
          }
       }
